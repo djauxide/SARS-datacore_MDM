@@ -6,13 +6,16 @@ import type {
   EquipmentRecord,
   EventRecord,
   GpioRecord,
+  NmosFlowRecord,
   NmosNodeRecord,
   PlatformSnapshot,
+  RouteRecord,
   RunbookRecord,
   ScenarioRecord,
   SiteRecord,
   TenantRecord,
   UserRecord,
+  WorkflowRecord,
 } from './types'
 
 type PersistedState = {
@@ -20,8 +23,11 @@ type PersistedState = {
   sites: SiteRecord[]
   users: UserRecord[]
   connectors: ConnectorRecord[]
+  routes: RouteRecord[]
+  workflows: WorkflowRecord[]
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]
+  nmosFlows: NmosFlowRecord[]
   gpioPorts: GpioRecord[]
   alerts: AlertRecord[]
   scenarios: ScenarioRecord[]
@@ -71,6 +77,18 @@ function seedState(): PersistedState {
       { id: 5, siteId: 101, name: 'Cloud Burst Control', type: 'Cloud', vendor: 'Nexus', status: 'connected', protocol: 'HTTPS + WebSocket', lastSync: seen },
       { id: 6, siteId: 101, name: 'Legacy GPIO Rack', type: 'GPIO', vendor: 'Grass Valley', status: 'connected', protocol: 'GPI/GPO', lastSync: seen },
     ],
+    routes: [
+      { id: 1, source: 'Studio 1 Program', destination: 'Cloud Switcher A', siteId: 101, controller: 'GV Router Bridge', transport: 'ST 2110-20', state: 'active', protected: true },
+      { id: 2, source: 'Replay A', destination: 'Program Bus B', siteId: 101, controller: 'EVS Neuron Gateway', transport: 'ST 2110-22', state: 'standby', protected: true },
+      { id: 3, source: 'Commentary A', destination: 'Audio Core', siteId: 102, controller: 'Lawo Audio Core', transport: 'AES67', state: 'active', protected: false },
+      { id: 4, source: 'Breaking News Feed', destination: 'FAST Output', siteId: 103, controller: 'Cloud Burst Control', transport: 'SRT', state: 'blocked', protected: true },
+    ],
+    workflows: [
+      { id: 1, name: 'Provision Remote Gallery', category: 'provisioning', target: 'Cloud Burst Control', state: 'idle', lastRun: 'Today 10:14' },
+      { id: 2, name: 'Failover Contribution Path', category: 'failover', target: 'EVS Neuron Gateway', state: 'idle', lastRun: 'Today 09:22' },
+      { id: 3, name: 'Validate NMOS Connections', category: 'compliance', target: 'NMOS Registry Core', state: 'complete', lastRun: 'Today 11:06' },
+      { id: 4, name: 'Show Start Macro', category: 'show-control', target: 'GV Router Bridge', state: 'idle', lastRun: 'Yesterday 18:32' },
+    ],
     equipment: [
       { id: 1, name: 'JHB Core Router', vendor: 'Nexus', model: 'NXR-128', role: 'Video Router', facility: 'Johannesburg HQ', status: 'online', protocols: ['ST 2110', 'NMOS IS-05', 'GPIO'], cpuLoad: 39, temperature: 46, latencyMs: 2, lastSeen: seen },
       { id: 2, name: 'Cape Town Multiview', vendor: 'Nexus', model: 'MV-16', role: 'Multiviewer', facility: 'Cape Town Production', status: 'online', protocols: ['ST 2110', 'WebRTC'], cpuLoad: 54, temperature: 51, latencyMs: 7, lastSeen: seen },
@@ -83,6 +101,12 @@ function seedState(): PersistedState {
       { id: 2, label: 'Contribution Feed Receiver', nodeId: 'node-cpt-receiver', kind: 'receiver', transport: 'urn:x-nmos:transport:srt', subscription: 'Contribution / Cape Town', status: 'registered' },
       { id: 3, label: 'Legacy Tally Bridge', nodeId: 'node-gpio-tally', kind: 'node', transport: 'urn:x-nmos:transport:dash', subscription: 'GPIO / Tally', status: 'warning' },
       { id: 4, label: 'FAST Channel Sender', nodeId: 'node-fast-output', kind: 'sender', transport: 'urn:x-nmos:transport:websocket', subscription: 'FAST / OTT', status: 'registered' },
+    ],
+    nmosFlows: [
+      { id: 1, nodeId: 'node-jhb-program', label: 'Studio 1 Video', mediaType: 'video', format: 'video/raw; sampling=YCbCr-4:2:2', status: 'active' },
+      { id: 2, nodeId: 'node-cpt-receiver', label: 'Commentary Main', mediaType: 'audio', format: 'audio/L24; rate=48000; channels=2', status: 'active' },
+      { id: 3, nodeId: 'node-gpio-tally', label: 'Tally Event Stream', mediaType: 'anc', format: 'application/json', status: 'warning' },
+      { id: 4, nodeId: 'node-fast-output', label: 'FAST ABR Program', mediaType: 'video', format: 'video/smpte291', status: 'standby' },
     ],
     gpioPorts: [
       { id: 1, port: 'GPI-01', label: 'Studio Red Button', direction: 'GPI', state: 0, deviceName: 'Legacy GPIO Rack' },
@@ -129,8 +153,11 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     sites: raw.sites ?? seeded.sites,
     users: raw.users ?? seeded.users,
     connectors: raw.connectors ?? seeded.connectors,
+    routes: raw.routes ?? seeded.routes,
+    workflows: raw.workflows ?? seeded.workflows,
     equipment: raw.equipment ?? seeded.equipment,
     nmosNodes: raw.nmosNodes ?? seeded.nmosNodes,
+    nmosFlows: raw.nmosFlows ?? seeded.nmosFlows,
     gpioPorts: raw.gpioPorts ?? seeded.gpioPorts,
     alerts: raw.alerts ?? seeded.alerts,
     scenarios: raw.scenarios ?? seeded.scenarios,
@@ -172,6 +199,18 @@ function refreshTelemetry(state: PersistedState) {
     const status = connector.name === 'EVS Neuron Gateway' && index % 2 === 0 ? 'degraded' : connector.status === 'offline' ? 'offline' : 'connected'
     return { ...connector, status, lastSync: nowIso() }
   })
+
+  state.routes = state.routes.map((route, index) => ({
+    ...route,
+    state:
+      route.destination === 'FAST Output' && state.connectors.some((connector) => connector.name === 'Cloud Burst Control' && connector.status !== 'connected')
+        ? 'blocked'
+        : index % 3 === 0
+          ? 'active'
+          : route.state === 'blocked'
+            ? 'standby'
+            : route.state,
+  }))
 }
 
 export function getPlatformSnapshot(): PlatformSnapshot {
@@ -186,6 +225,8 @@ export function getPlatformSnapshot(): PlatformSnapshot {
     sites: state.sites,
     users: state.users,
     connectors: state.connectors,
+    routes: state.routes,
+    workflows: state.workflows,
     metrics: {
       onAirServices: state.equipment.filter((item) => item.status === 'online').length,
       activeIncidents: state.alerts.filter((item) => !item.acknowledged && item.severity !== 'info').length,
@@ -197,6 +238,7 @@ export function getPlatformSnapshot(): PlatformSnapshot {
     },
     equipment: state.equipment,
     nmosNodes: state.nmosNodes,
+    nmosFlows: state.nmosFlows,
     gpioPorts: state.gpioPorts,
     alerts: state.alerts,
     scenarios: state.scenarios,
@@ -218,6 +260,12 @@ export function triggerScenario(slug: string) {
       item.name === 'Neuron Bridge 01' ? { ...item, status: 'degraded', latencyMs: Math.min(40, item.latencyMs + 7) } : item,
     )
     state.sites = state.sites.map((site) => (site.id === 103 ? { ...site, health: 'critical', ptpOffsetNs: 980 } : site))
+    state.routes = state.routes.map((route) =>
+      route.siteId === 103 || route.controller === 'EVS Neuron Gateway' ? { ...route, state: 'blocked' } : route,
+    )
+    state.workflows = state.workflows.map((workflow) =>
+      workflow.name === 'Failover Contribution Path' ? { ...workflow, state: 'running', lastRun: nowClock() } : workflow,
+    )
     state.alerts = [
       {
         id: Date.now(),
@@ -232,6 +280,9 @@ export function triggerScenario(slug: string) {
     state.runbooks = state.runbooks.map((runbook) =>
       runbook.name === 'Cloud Gallery Spin-up' ? { ...runbook, state: 'running' } : runbook,
     )
+    state.workflows = state.workflows.map((workflow) =>
+      workflow.name === 'Show Start Macro' ? { ...workflow, state: 'running', lastRun: nowClock() } : workflow,
+    )
     state.gpioPorts = state.gpioPorts.map((port) => (port.port === 'GPO-01' ? { ...port, state: 1 } : port))
   } else if (slug === 'champions-league') {
     state.equipment = state.equipment.map((item) =>
@@ -240,6 +291,9 @@ export function triggerScenario(slug: string) {
     state.sites = state.sites.map((site) => (site.id === 101 || site.id === 102 ? { ...site, activeServices: site.activeServices + 2 } : site))
     state.runbooks = state.runbooks.map((runbook) =>
       runbook.name === 'Cloud Gallery Spin-up' ? { ...runbook, state: 'complete' } : runbook,
+    )
+    state.workflows = state.workflows.map((workflow) =>
+      workflow.name === 'Provision Remote Gallery' ? { ...workflow, state: 'complete', lastRun: nowClock() } : workflow,
     )
   }
 
@@ -285,6 +339,16 @@ export function runDiscovery() {
       protocol: 'SNP + NMOS',
       lastSync: nowIso(),
     })
+    state.routes.unshift({
+      id: Date.now() + 3,
+      source: 'Imagine Backup Feed',
+      destination: 'Program Bus B',
+      siteId: 102,
+      controller: 'Imagine SNP Connector',
+      transport: 'ST 2022-7',
+      state: 'standby',
+      protected: true,
+    })
   }
 
   addEvent(state, 'Discovery completed', 'Equipment discovery scanned NMOS, router, audio, and legacy control inventory.')
@@ -319,6 +383,34 @@ export function setConnectorStatus(connectorId: number, status: ConnectorRecord[
   const connector = state.connectors.find((item) => item.id === connectorId)
   if (connector) {
     addEvent(state, 'Connector state changed', `${connector.name} set to ${status}.`)
+  }
+  writeState(state)
+}
+
+export function switchRoute(routeId: number) {
+  const state = readState()
+  state.routes = state.routes.map((route) =>
+    route.id === routeId
+      ? { ...route, state: route.state === 'active' ? 'standby' : 'active' }
+      : route.destination === state.routes.find((candidate) => candidate.id === routeId)?.destination
+        ? { ...route, state: route.id === routeId ? route.state : 'standby' }
+        : route,
+  )
+  const route = state.routes.find((item) => item.id === routeId)
+  if (route) {
+    addEvent(state, 'Route switched', `${route.source} to ${route.destination} via ${route.controller} set ${route.state === 'active' ? 'standby' : 'active'}.`)
+  }
+  writeState(state)
+}
+
+export function runWorkflow(workflowId: number) {
+  const state = readState()
+  state.workflows = state.workflows.map((workflow) =>
+    workflow.id === workflowId ? { ...workflow, state: 'running', lastRun: nowClock() } : workflow,
+  )
+  const workflow = state.workflows.find((item) => item.id === workflowId)
+  if (workflow) {
+    addEvent(state, 'Workflow launched', `${workflow.name} started against ${workflow.target}.`)
   }
   writeState(state)
 }

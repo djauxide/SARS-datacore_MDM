@@ -52,6 +52,15 @@ export type NmosNodeRecord = {
   status: 'registered' | 'warning' | 'missing'
 }
 
+export type NmosFlowRecord = {
+  id: number
+  nodeId: string
+  label: string
+  mediaType: 'video' | 'audio' | 'anc'
+  format: string
+  status: 'active' | 'standby' | 'warning'
+}
+
 export type ConnectorRecord = {
   id: number
   siteId: number
@@ -61,6 +70,26 @@ export type ConnectorRecord = {
   status: 'connected' | 'degraded' | 'offline'
   protocol: string
   lastSync: string
+}
+
+export type RouteRecord = {
+  id: number
+  source: string
+  destination: string
+  siteId: number
+  controller: string
+  transport: string
+  state: 'active' | 'standby' | 'blocked'
+  protected: boolean
+}
+
+export type WorkflowRecord = {
+  id: number
+  name: string
+  category: 'failover' | 'provisioning' | 'compliance' | 'show-control'
+  target: string
+  state: 'idle' | 'running' | 'complete'
+  lastRun: string
 }
 
 export type GpioRecord = {
@@ -110,6 +139,8 @@ export type PlatformSnapshot = {
   sites: SiteRecord[]
   users: UserRecord[]
   connectors: ConnectorRecord[]
+  routes: RouteRecord[]
+  workflows: WorkflowRecord[]
   metrics: {
     onAirServices: number
     activeIncidents: number
@@ -121,6 +152,7 @@ export type PlatformSnapshot = {
   }
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]
+  nmosFlows: NmosFlowRecord[]
   gpioPorts: GpioRecord[]
   alerts: AlertRecord[]
   scenarios: ScenarioRecord[]

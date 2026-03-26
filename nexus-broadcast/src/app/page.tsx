@@ -160,6 +160,26 @@ export default function NexusEnterprisePage() {
     setBusyAction(null)
   }
 
+  const toggleRoute = async (id: number) => {
+    setBusyAction(`route-${id}`)
+    await requestJson('/api/routes', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const executeWorkflow = async (id: number) => {
+    setBusyAction(`workflow-${id}`)
+    await requestJson('/api/workflows', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
   const loginAs = async (userId: number) => {
     setBusyAction(`login-${userId}`)
     const response = await requestJson<{ session: SessionRecord }>('/api/auth/login', {
@@ -254,6 +274,43 @@ export default function NexusEnterprisePage() {
               <article className="panel">
                 <div className="panelHeader">
                   <div>
+                    <p className="panelLabel">Routing core</p>
+                    <h2>Live source-to-destination control</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.routes.map((route) => (
+                    <article key={route.id} className="trainingCard">
+                      <div className="trainingCardHeader">
+                        <span className={route.state === 'active' ? 'badge live' : route.state === 'standby' ? 'badge standby' : 'badge critical'}>
+                          {route.state}
+                        </span>
+                        <small>{route.transport}</small>
+                      </div>
+                      <h3>{route.source}</h3>
+                      <p>
+                        {route.destination} • {route.controller}
+                      </p>
+                      <div className="trainingMeta">
+                        <small>{route.protected ? 'Protected flow' : 'Single path'}</small>
+                        <small>Site {route.siteId}</small>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghostButton activeToggle"
+                        onClick={() => void toggleRoute(route.id)}
+                        disabled={busyAction === `route-${route.id}` || route.state === 'blocked'}
+                      >
+                        {busyAction === `route-${route.id}` ? 'Switching...' : 'Toggle route'}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
                     <p className="panelLabel">Live scenarios</p>
                     <h2>Production event control</h2>
                   </div>
@@ -282,8 +339,42 @@ export default function NexusEnterprisePage() {
               <article className="panel">
                 <div className="panelHeader">
                   <div>
+                    <p className="panelLabel">Operational workflows</p>
+                    <h2>Show-control and recovery automations</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.workflows.map((workflow) => (
+                    <article key={workflow.id} className="trainingCard">
+                      <div className="trainingCardHeader">
+                        <span className={workflow.state === 'complete' ? 'badge live' : workflow.state === 'running' ? 'badge warning' : 'badge standby'}>
+                          {workflow.state}
+                        </span>
+                        <small>{workflow.category}</small>
+                      </div>
+                      <h3>{workflow.name}</h3>
+                      <p>{workflow.target}</p>
+                      <div className="trainingMeta">
+                        <small>Last run {workflow.lastRun}</small>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghostButton"
+                        onClick={() => void executeWorkflow(workflow.id)}
+                        disabled={busyAction === `workflow-${workflow.id}`}
+                      >
+                        {busyAction === `workflow-${workflow.id}` ? 'Launching...' : 'Run workflow'}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
                     <p className="panelLabel">On-air risks</p>
-                    <h2>Alerts and event feed</h2>
+                    <h2>Alerts and operator attention</h2>
                   </div>
                 </div>
                 <div className="alertList">
@@ -373,6 +464,32 @@ export default function NexusEnterprisePage() {
                         <button type="button" className="ghostButton dangerButton" onClick={() => void changeConnectorStatus(connector.id, 'offline')}>
                           Offline
                         </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">NMOS fabric</p>
+                    <h2>Discovery and connection inventory</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.nmosFlows.map((flow) => (
+                    <article key={flow.id} className="trainingCard">
+                      <div className="trainingCardHeader">
+                        <span className={flow.status === 'active' ? 'badge live' : flow.status === 'standby' ? 'badge standby' : 'badge warning'}>
+                          {flow.status}
+                        </span>
+                        <small>{flow.mediaType}</small>
+                      </div>
+                      <h3>{flow.label}</h3>
+                      <p>{flow.nodeId}</p>
+                      <div className="trainingMeta">
+                        <small>{flow.format}</small>
                       </div>
                     </article>
                   ))}
