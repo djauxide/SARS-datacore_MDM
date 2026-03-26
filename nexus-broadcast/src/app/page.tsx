@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
 type DeviceState = 'online' | 'degraded' | 'offline'
@@ -407,6 +408,9 @@ export default function NexusPage() {
             {simulationMode} mode
           </div>
           <div className="statusPill subtle">{clock || 'Syncing clock...'}</div>
+          <Link href="/training" className="ghostButton">
+            Open training hub
+          </Link>
         </div>
       </section>
 

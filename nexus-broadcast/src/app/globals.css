@@ -287,6 +287,7 @@ button {
 
 .simulationGrid,
 .feedGrid,
+.trainingGrid,
 .routeList,
 .automationGrid,
 .alertList,
@@ -307,7 +308,9 @@ button {
 .automationCard,
 .alertCard,
 .complianceRow,
-.selectionBar {
+.selectionBar,
+.trainingCard,
+.moduleStepCard {
   border: 1px solid var(--border);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.03);
@@ -337,9 +340,56 @@ button {
 }
 
 .feedGrid,
+.trainingGrid,
 .deviceList,
 .automationGrid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.trainingCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.trainingCard h3,
+.moduleStepCard h3 {
+  margin: 0 0 10px;
+}
+
+.trainingMeta {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.trainingText {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.trainingSection + .trainingSection {
+  margin-top: 20px;
+}
+
+.trainingSection h3 {
+  margin: 0 0 12px;
+}
+
+.trainingList {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.trainingNavList,
+.moduleStepList {
+  display: grid;
+  gap: 14px;
 }
 
 .feedTile {
@@ -467,6 +517,7 @@ button {
 @media (max-width: 1120px) {
   .kpiGrid,
   .feedGrid,
+  .trainingGrid,
   .deviceList,
   .automationGrid,
   .simulationGrid,
