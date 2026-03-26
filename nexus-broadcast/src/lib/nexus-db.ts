@@ -10,6 +10,7 @@ import type {
   NmosNodeRecord,
   ObUnitRecord,
   PlatformSnapshot,
+  ProductionSetupRecord,
   ReceiverRecord,
   RouteRecord,
   RunbookRecord,
@@ -45,6 +46,8 @@ type PersistedState = {
   scenarios: ScenarioRecord[]
   runbooks: RunbookRecord[]
   events: EventRecord[]
+  productions: ProductionSetupRecord[]
+  activeProductionId?: number
 }
 
 function nowIso() {
@@ -221,6 +224,60 @@ function seedState(): PersistedState {
       { id: 2, name: 'Remote Event MCR', playout: 'Nexus Channel Engine', ingest: 'SRT Edge Ingest', compliance: 'Delay + QC', distribution: 'Digital + Social', status: 'ready', activeStudioId: 2 },
       { id: 3, name: 'Backup MCR', playout: 'Disaster Playout', ingest: 'Backup Fiber Ingest', compliance: 'Safe Output', distribution: 'Disaster Recovery', status: 'switching' },
     ],
+    productions: [
+      {
+        id: 1,
+        name: 'Premier Football Match',
+        productionType: 'sports',
+        status: 'live',
+        siteId: 101,
+        studioId: 1,
+        mcrChainId: 1,
+        multiviewLayout: '4x2 match gallery',
+        cameraCount: 12,
+        audioProfile: '5.1 international with commentary',
+        graphicsProfile: 'Sports lower thirds and scorebug',
+        redundancy: 'protected',
+        primaryRouteIds: [1, 2],
+        connectorIds: [1, 2, 4, 5, 6],
+        notes: 'Main OB match workflow with cloud backup gallery.',
+      },
+      {
+        id: 2,
+        name: 'Rolling News Bulletin',
+        productionType: 'news',
+        status: 'ready',
+        siteId: 102,
+        studioId: 2,
+        mcrChainId: 2,
+        multiviewLayout: '3x3 newsroom',
+        cameraCount: 5,
+        audioProfile: 'Stereo anchor and remote guest',
+        graphicsProfile: 'Breaking and lower-third package',
+        redundancy: 'protected',
+        primaryRouteIds: [3, 4],
+        connectorIds: [1, 4, 5, 6],
+        notes: 'Fast switching between studio, remote guest, and branded outputs.',
+      },
+      {
+        id: 3,
+        name: 'Remote Flypack Concert',
+        productionType: 'entertainment',
+        status: 'draft',
+        siteId: 103,
+        studioId: 3,
+        mcrChainId: 3,
+        multiviewLayout: 'wide stage mosaic',
+        cameraCount: 8,
+        audioProfile: 'Music mix plus stems',
+        graphicsProfile: 'Event branding and sponsor loop',
+        redundancy: 'dual-site',
+        primaryRouteIds: [2, 4],
+        connectorIds: [1, 3, 5, 6],
+        notes: 'Draft remote entertainment build with dual-site recovery.',
+      },
+    ],
+    activeProductionId: 1,
     events: [
       { id: 1, time: nowClock(), title: 'Enterprise datastore initialized', detail: 'Nexus seeded tenants, sites, connectors, discovery, and operational state.' },
       { id: 2, time: nowClock(), title: 'NMOS registry linked', detail: 'Initial simulated device registration completed.' },
@@ -251,6 +308,8 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     scenarios: raw.scenarios ?? seeded.scenarios,
     runbooks: raw.runbooks ?? seeded.runbooks,
     events: raw.events ?? seeded.events,
+    productions: raw.productions ?? seeded.productions,
+    activeProductionId: raw.activeProductionId ?? seeded.activeProductionId,
   }
 
   normalizeBranding(state)
@@ -350,7 +409,79 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
     scenarios: state.scenarios,
     runbooks: state.runbooks,
     events: state.events,
+    productions: state.productions,
+    activeProductionId: state.activeProductionId,
   }
+}
+
+export async function listProductionSetups() {
+  const state = await readState()
+  return {
+    productions: state.productions,
+    activeProductionId: state.activeProductionId,
+  }
+}
+
+export async function applyProductionSetup(productionId: number) {
+  const state = await readState()
+  const production = state.productions.find((item) => item.id === productionId)
+
+  if (!production) {
+    throw new Error('Production setup not found.')
+  }
+
+  state.activeProductionId = productionId
+  state.productions = state.productions.map((item) => ({
+    ...item,
+    status: item.id === productionId ? 'live' : item.status === 'live' ? 'ready' : item.status,
+  }))
+  state.virtualStudios = state.virtualStudios.map((studio) => ({
+    ...studio,
+    mode: studio.id === production.studioId ? 'live' : studio.mode === 'live' ? 'standby' : studio.mode,
+  }))
+  state.mcrChains = state.mcrChains.map((chain) => ({
+    ...chain,
+    status: chain.id === production.mcrChainId ? 'on-air' : chain.status === 'on-air' ? 'ready' : chain.status,
+    activeStudioId: chain.id === production.mcrChainId ? production.studioId : chain.activeStudioId,
+  }))
+  state.routes = state.routes.map((route) => ({
+    ...route,
+    state: production.primaryRouteIds.includes(route.id) ? 'active' : route.state === 'active' ? 'standby' : route.state,
+    protected: production.redundancy !== 'single' ? true : route.protected,
+  }))
+  state.connectors = state.connectors.map((connector) => ({
+    ...connector,
+    status: production.connectorIds.includes(connector.id) ? 'connected' : connector.status,
+  }))
+  state.sites = state.sites.map((site) => ({
+    ...site,
+    activeServices: site.id === production.siteId ? Math.max(site.activeServices, production.cameraCount + 4) : site.activeServices,
+    mode: site.id === production.siteId ? 'Production' : site.mode,
+  }))
+
+  addEvent(state, 'Production setup applied', `${production.name} is now active with ${production.multiviewLayout}.`)
+  await writeState(state)
+  return production
+}
+
+export async function saveProductionSetup(
+  input: Omit<ProductionSetupRecord, 'id'> & { id?: number },
+) {
+  const state = await readState()
+  const nextId = input.id ?? Date.now()
+  const nextRecord: ProductionSetupRecord = {
+    ...input,
+    id: nextId,
+  }
+
+  const exists = state.productions.some((item) => item.id === nextId)
+  state.productions = exists
+    ? state.productions.map((item) => (item.id === nextId ? nextRecord : item))
+    : [nextRecord, ...state.productions]
+
+  addEvent(state, exists ? 'Production setup updated' : 'Production setup created', `${nextRecord.name} saved to the configuration database.`)
+  await writeState(state)
+  return nextRecord
 }
 
 export async function getUsers() {

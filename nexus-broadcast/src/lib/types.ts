@@ -198,6 +198,24 @@ export type EventRecord = {
   detail: string
 }
 
+export type ProductionSetupRecord = {
+  id: number
+  name: string
+  productionType: 'sports' | 'news' | 'entertainment' | 'remote'
+  status: 'draft' | 'ready' | 'live'
+  siteId: number
+  studioId: number
+  mcrChainId: number
+  multiviewLayout: string
+  cameraCount: number
+  audioProfile: string
+  graphicsProfile: string
+  redundancy: 'single' | 'protected' | 'dual-site'
+  primaryRouteIds: number[]
+  connectorIds: number[]
+  notes: string
+}
+
 export type PlatformSnapshot = {
   generatedAt: string
   facilities: string[]
@@ -232,6 +250,8 @@ export type PlatformSnapshot = {
   scenarios: ScenarioRecord[]
   runbooks: RunbookRecord[]
   events: EventRecord[]
+  productions: ProductionSetupRecord[]
+  activeProductionId?: number
 }
 
 export type SessionRecord = {

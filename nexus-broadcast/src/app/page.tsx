@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import type { PlatformSnapshot, SessionRecord, UserRecord, UserRole } from '@/lib/types'
+import type { PlatformSnapshot, ProductionSetupRecord, SessionRecord, UserRecord, UserRole } from '@/lib/types'
 
 type Workspace = 'operator' | 'engineer' | 'trainee' | 'admin'
 
@@ -126,6 +126,10 @@ export default function NexusEnterprisePage() {
   }, [session, users])
 
   const activeSite = useMemo(() => snapshot?.sites.find((site) => site.id === session?.siteId) ?? snapshot?.sites[0], [session, snapshot])
+  const currentProduction = useMemo(
+    () => snapshot?.productions.find((production) => production.id === snapshot.activeProductionId) ?? snapshot?.productions[0] ?? null,
+    [snapshot],
+  )
   const activeRoute = useMemo(() => snapshot?.routes.find((route) => route.state === 'active') ?? null, [snapshot])
   const standbyRoute = useMemo(() => snapshot?.routes.find((route) => route.state === 'standby') ?? null, [snapshot])
   const liveStudio = useMemo(() => snapshot?.virtualStudios.find((studio) => studio.mode === 'live') ?? null, [snapshot])
@@ -345,6 +349,32 @@ export default function NexusEnterprisePage() {
     setBusyAction('logout')
     await requestJson('/api/auth/logout', { method: 'POST' })
     await loadSession()
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const applyProduction = async (id: number) => {
+    setBusyAction(`production-${id}`)
+    await requestJson('/api/productions', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'apply', id }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const cloneProduction = async (production: ProductionSetupRecord) => {
+    setBusyAction(`production-save-${production.id}`)
+    await requestJson('/api/productions', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...production,
+        action: 'save',
+        id: undefined,
+        name: `${production.name} Copy`,
+        status: 'draft',
+      }),
+    })
     await loadSnapshot()
     setBusyAction(null)
   }
@@ -680,7 +710,7 @@ export default function NexusEnterprisePage() {
                         </div>
                       </div>
                     </div>
-                    <div className="takeBar">
+                <div className="takeBar">
                       <button
                         type="button"
                         className="ghostButton activeToggle"
@@ -705,6 +735,10 @@ export default function NexusEnterprisePage() {
                       >
                         Breaking mode
                       </button>
+                    </div>
+                    <div className="trainingMeta" style={{ marginTop: 16 }}>
+                      <small>{currentProduction ? `Production: ${currentProduction.name}` : 'No production active'}</small>
+                      <small>{currentProduction ? `${currentProduction.cameraCount} cameras • ${currentProduction.multiviewLayout}` : 'Configure a setup in admin'}</small>
                     </div>
                   </section>
 
@@ -1177,6 +1211,63 @@ export default function NexusEnterprisePage() {
                       </div>
                     </article>
                   ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Production database</p>
+                    <h2>Saved setups and activation plans</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.productions.map((production) => {
+                    const studio = snapshot.virtualStudios.find((item) => item.id === production.studioId)
+                    const site = snapshot.sites.find((item) => item.id === production.siteId)
+
+                    return (
+                      <article key={production.id} className="trainingCard">
+                        <div className="trainingCardHeader">
+                          <span className={production.status === 'live' ? 'badge live' : production.status === 'ready' ? 'badge standby' : 'badge warning'}>
+                            {production.status}
+                          </span>
+                          <small>{production.productionType}</small>
+                        </div>
+                        <h3>{production.name}</h3>
+                        <p>
+                          {site?.name ?? 'Unknown site'} • {studio?.name ?? 'No studio assigned'}
+                        </p>
+                        <div className="trainingMeta">
+                          <small>{production.cameraCount} cameras • {production.multiviewLayout}</small>
+                          <small>{production.audioProfile}</small>
+                        </div>
+                        <div className="trainingMeta">
+                          <small>{production.graphicsProfile}</small>
+                          <small>{production.redundancy} redundancy</small>
+                        </div>
+                        <p className="trainingText">{production.notes}</p>
+                        <div className="buttonRow">
+                          <button
+                            type="button"
+                            className="ghostButton activeToggle"
+                            onClick={() => void applyProduction(production.id)}
+                            disabled={busyAction === `production-${production.id}` || production.status === 'live'}
+                          >
+                            {busyAction === `production-${production.id}` ? 'Applying...' : production.status === 'live' ? 'Active setup' : 'Apply setup'}
+                          </button>
+                          <button
+                            type="button"
+                            className="ghostButton"
+                            onClick={() => void cloneProduction(production)}
+                            disabled={busyAction === `production-save-${production.id}`}
+                          >
+                            {busyAction === `production-save-${production.id}` ? 'Saving...' : 'Duplicate setup'}
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
               </article>
 
