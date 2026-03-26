@@ -190,6 +190,26 @@ export default function NexusEnterprisePage() {
     setBusyAction(null)
   }
 
+  const activateStudio = async (studioId: number) => {
+    setBusyAction(`studio-${studioId}`)
+    await requestJson('/api/hybrid', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'activate-studio', studioId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const assignObToStudio = async (obUnitId: number, studioId: number) => {
+    setBusyAction(`ob-${obUnitId}-${studioId}`)
+    await requestJson('/api/hybrid', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'assign-ob', obUnitId, studioId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
   const loginAs = async (userId: number) => {
     setBusyAction(`login-${userId}`)
     const response = await requestJson<{ session: SessionRecord }>('/api/auth/login', {
@@ -254,6 +274,11 @@ export default function NexusEnterprisePage() {
           <span>Queued jobs</span>
           <strong>{snapshot?.metrics.queuedJobs ?? '--'}</strong>
           <small>Auditable command execution</small>
+        </article>
+        <article className="kpiCard">
+          <span>Live studios</span>
+          <strong>{snapshot?.metrics.liveStudios ?? '--'}</strong>
+          <small>Hybrid OB + studio + cloud MCR</small>
         </article>
       </section>
 
@@ -348,6 +373,99 @@ export default function NexusEnterprisePage() {
                       </button>
                     </article>
                   ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Outside broadcast</p>
+                    <h2>Remote venue contribution and studio assignment</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.obUnits.map((unit) => {
+                    const assignedStudio = snapshot.virtualStudios.find((studio) => studio.id === unit.activeStudioId)
+
+                    return (
+                      <article key={unit.id} className="trainingCard">
+                        <div className="trainingCardHeader">
+                          <span className={unit.status === 'on-air' ? 'badge live' : unit.status === 'degraded' ? 'badge warning' : 'badge standby'}>
+                            {unit.status}
+                          </span>
+                          <small>{unit.contribution}</small>
+                        </div>
+                        <h3>{unit.name}</h3>
+                        <p>
+                          {unit.venue} • {unit.latencyMs} ms contribution latency
+                        </p>
+                        <div className="trainingMeta">
+                          <small>{assignedStudio ? `Assigned to ${assignedStudio.name}` : 'Unassigned to studio'}</small>
+                          <small>{assignedStudio ? `MCR ${assignedStudio.mcrChainId}` : 'Awaiting control room routing'}</small>
+                        </div>
+                        <div className="buttonRow">
+                          {snapshot.virtualStudios.slice(0, 3).map((studio) => (
+                            <button
+                              key={studio.id}
+                              type="button"
+                              className={unit.activeStudioId === studio.id ? 'ghostButton activeToggle' : 'ghostButton'}
+                              onClick={() => void assignObToStudio(unit.id, studio.id)}
+                              disabled={busyAction === `ob-${unit.id}-${studio.id}`}
+                            >
+                              {busyAction === `ob-${unit.id}-${studio.id}` ? 'Assigning...' : `Route to ${studio.name}`}
+                            </button>
+                          ))}
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Virtual studio and MCR</p>
+                    <h2>Hybrid cloud control rooms and master control readiness</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.virtualStudios.map((studio) => {
+                    const site = snapshot.sites.find((item) => item.id === studio.siteId)
+                    const chain = snapshot.mcrChains.find((item) => item.id === studio.mcrChainId)
+                    const linkedUnits = snapshot.obUnits.filter((unit) => unit.activeStudioId === studio.id)
+
+                    return (
+                      <article key={studio.id} className="trainingCard">
+                        <div className="trainingCardHeader">
+                          <span className={studio.mode === 'live' ? 'badge live' : studio.mode === 'maintenance' ? 'badge warning' : 'badge standby'}>
+                            {studio.mode}
+                          </span>
+                          <small>{studio.host}</small>
+                        </div>
+                        <h3>{studio.name}</h3>
+                        <p>
+                          {site?.name ?? 'Unknown site'} • {studio.operatorCount} operators
+                        </p>
+                        <div className="trainingMeta">
+                          <small>{chain ? `${chain.name} • ${chain.status}` : 'No MCR chain attached'}</small>
+                          <small>{linkedUnits.length > 0 ? `${linkedUnits.length} OB feed(s) linked` : 'No OB feeds linked'}</small>
+                        </div>
+                        <div className="trainingMeta">
+                          <small>{chain?.playout ?? 'Playout pending'}</small>
+                          <small>{chain?.distribution ?? 'Distribution pending'}</small>
+                        </div>
+                        <button
+                          type="button"
+                          className="ghostButton activeToggle"
+                          onClick={() => void activateStudio(studio.id)}
+                          disabled={busyAction === `studio-${studio.id}` || studio.mode === 'maintenance'}
+                        >
+                          {busyAction === `studio-${studio.id}` ? 'Promoting...' : studio.mode === 'live' ? 'Studio live' : 'Take live'}
+                        </button>
+                      </article>
+                    )
+                  })}
                 </div>
               </article>
 
@@ -611,6 +729,39 @@ export default function NexusEnterprisePage() {
                       </button>
                     </article>
                   ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Master control chains</p>
+                    <h2>Cloud and studio playout readiness</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.mcrChains.map((chain) => {
+                    const studio = snapshot.virtualStudios.find((item) => item.id === chain.activeStudioId)
+
+                    return (
+                      <article key={chain.id} className="trainingCard">
+                        <div className="trainingCardHeader">
+                          <span className={chain.status === 'on-air' ? 'badge live' : chain.status === 'switching' ? 'badge warning' : 'badge standby'}>
+                            {chain.status}
+                          </span>
+                          <small>{studio?.name ?? 'No studio live'}</small>
+                        </div>
+                        <h3>{chain.name}</h3>
+                        <p>
+                          {chain.playout} • {chain.ingest}
+                        </p>
+                        <div className="trainingMeta">
+                          <small>{chain.compliance}</small>
+                          <small>{chain.distribution}</small>
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
               </article>
             </>

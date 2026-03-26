@@ -127,6 +127,37 @@ export type ReceiverRecord = {
   activationMode: 'immediate' | 'scheduled'
 }
 
+export type ObUnitRecord = {
+  id: number
+  name: string
+  venue: string
+  contribution: 'fiber' | 'satellite' | 'bonded-cellular'
+  latencyMs: number
+  status: 'ready' | 'on-air' | 'degraded'
+  activeStudioId?: number
+}
+
+export type VirtualStudioRecord = {
+  id: number
+  name: string
+  siteId: number
+  host: 'cloud' | 'on-prem' | 'hybrid'
+  mode: 'standby' | 'live' | 'maintenance'
+  operatorCount: number
+  mcrChainId: number
+}
+
+export type McrChainRecord = {
+  id: number
+  name: string
+  playout: string
+  ingest: string
+  compliance: string
+  distribution: string
+  status: 'ready' | 'switching' | 'on-air'
+  activeStudioId?: number
+}
+
 export type GpioRecord = {
   id: number
   port: string
@@ -179,6 +210,9 @@ export type PlatformSnapshot = {
   jobs: JobRecord[]
   senders: SenderRecord[]
   receivers: ReceiverRecord[]
+  obUnits: ObUnitRecord[]
+  virtualStudios: VirtualStudioRecord[]
+  mcrChains: McrChainRecord[]
   metrics: {
     onAirServices: number
     activeIncidents: number
@@ -188,6 +222,7 @@ export type PlatformSnapshot = {
     connectedSites: number
     connectedConnectors: number
     queuedJobs: number
+    liveStudios: number
   }
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]

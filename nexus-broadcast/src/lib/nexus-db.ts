@@ -5,8 +5,10 @@ import type {
   EventRecord,
   GpioRecord,
   JobRecord,
+  McrChainRecord,
   NmosFlowRecord,
   NmosNodeRecord,
+  ObUnitRecord,
   PlatformSnapshot,
   ReceiverRecord,
   RouteRecord,
@@ -16,6 +18,7 @@ import type {
   SiteRecord,
   TenantRecord,
   UserRecord,
+  VirtualStudioRecord,
   WorkflowRecord,
 } from './types'
 import { executeConnectorAction, type AdapterAction } from './adapters'
@@ -31,6 +34,9 @@ type PersistedState = {
   jobs: JobRecord[]
   senders: SenderRecord[]
   receivers: ReceiverRecord[]
+  obUnits: ObUnitRecord[]
+  virtualStudios: VirtualStudioRecord[]
+  mcrChains: McrChainRecord[]
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]
   nmosFlows: NmosFlowRecord[]
@@ -142,6 +148,21 @@ function seedState(): PersistedState {
       { id: 2, label: 'Program Bus B Receiver', format: 'video', transport: 'urn:x-nmos:transport:websocket', deviceId: 2, activeSenderId: 2, stagedSenderId: 2, activationMode: 'immediate' },
       { id: 3, label: 'Audio Core Receiver', format: 'audio', transport: 'urn:x-nmos:transport:rtp', deviceId: 4, activeSenderId: 3, stagedSenderId: 3, activationMode: 'immediate' },
     ],
+    obUnits: [
+      { id: 1, name: 'OB Unit Alpha', venue: 'FNB Stadium', contribution: 'fiber', latencyMs: 34, status: 'on-air', activeStudioId: 1 },
+      { id: 2, name: 'Flypack Beta', venue: 'Cape Town Arena', contribution: 'bonded-cellular', latencyMs: 86, status: 'ready', activeStudioId: 2 },
+      { id: 3, name: 'Field Hub Nairobi', venue: 'City Hall', contribution: 'satellite', latencyMs: 142, status: 'degraded' },
+    ],
+    virtualStudios: [
+      { id: 1, name: 'VS Cloud One', siteId: 101, host: 'hybrid', mode: 'live', operatorCount: 6, mcrChainId: 1 },
+      { id: 2, name: 'VS Remote Two', siteId: 102, host: 'cloud', mode: 'standby', operatorCount: 4, mcrChainId: 2 },
+      { id: 3, name: 'Studio Backup Pod', siteId: 103, host: 'on-prem', mode: 'maintenance', operatorCount: 2, mcrChainId: 3 },
+    ],
+    mcrChains: [
+      { id: 1, name: 'Primary Cloud MCR', playout: 'GV AMPP Playout', ingest: 'Neuron Gateway A', compliance: 'Loudness + SCTE', distribution: 'OTT + Satellite', status: 'on-air', activeStudioId: 1 },
+      { id: 2, name: 'Remote Event MCR', playout: 'Nexus Channel Engine', ingest: 'SRT Edge Ingest', compliance: 'Delay + QC', distribution: 'Digital + Social', status: 'ready', activeStudioId: 2 },
+      { id: 3, name: 'Backup MCR', playout: 'Disaster Playout', ingest: 'Backup Fiber Ingest', compliance: 'Safe Output', distribution: 'Disaster Recovery', status: 'switching' },
+    ],
     events: [
       { id: 1, time: nowClock(), title: 'Enterprise datastore initialized', detail: 'Nexus seeded tenants, sites, connectors, discovery, and operational state.' },
       { id: 2, time: nowClock(), title: 'NMOS registry linked', detail: 'Initial simulated device registration completed.' },
@@ -162,6 +183,9 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     jobs: raw.jobs ?? seeded.jobs,
     senders: raw.senders ?? seeded.senders,
     receivers: raw.receivers ?? seeded.receivers,
+    obUnits: raw.obUnits ?? seeded.obUnits,
+    virtualStudios: raw.virtualStudios ?? seeded.virtualStudios,
+    mcrChains: raw.mcrChains ?? seeded.mcrChains,
     equipment: raw.equipment ?? seeded.equipment,
     nmosNodes: raw.nmosNodes ?? seeded.nmosNodes,
     nmosFlows: raw.nmosFlows ?? seeded.nmosFlows,
@@ -220,6 +244,11 @@ function refreshTelemetry(state: PersistedState) {
             ? 'standby'
             : route.state,
   }))
+
+  state.virtualStudios = state.virtualStudios.map((studio, index) => ({
+    ...studio,
+    operatorCount: Math.max(1, studio.operatorCount + ((index % 2 === 0) ? 1 : -1)),
+  }))
 }
 
 export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
@@ -239,6 +268,9 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
     jobs: state.jobs,
     senders: state.senders,
     receivers: state.receivers,
+    obUnits: state.obUnits,
+    virtualStudios: state.virtualStudios,
+    mcrChains: state.mcrChains,
     metrics: {
       onAirServices: state.equipment.filter((item) => item.status === 'online').length,
       activeIncidents: state.alerts.filter((item) => !item.acknowledged && item.severity !== 'info').length,
@@ -248,6 +280,7 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
       connectedSites: state.sites.filter((item) => item.health !== 'critical').length,
       connectedConnectors: state.connectors.filter((item) => item.status === 'connected').length,
       queuedJobs: state.jobs.filter((item) => item.state === 'queued' || item.state === 'running').length,
+      liveStudios: state.virtualStudios.filter((item) => item.mode === 'live').length,
     },
     equipment: state.equipment,
     nmosNodes: state.nmosNodes,
@@ -498,6 +531,36 @@ export async function activateReceiverConnection(receiverId: number) {
   const receiver = state.receivers.find((item) => item.id === receiverId)
   if (receiver) {
     addEvent(state, 'Receiver activated', `${receiver.label} activated sender ${receiver.activeSenderId ?? 'none'}.`)
+  }
+  await writeState(state)
+}
+
+export async function activateVirtualStudio(studioId: number) {
+  const state = await readState()
+  state.virtualStudios = state.virtualStudios.map((studio) => ({
+    ...studio,
+    mode: studio.id === studioId ? 'live' : studio.mode === 'live' ? 'standby' : studio.mode,
+  }))
+  const studio = state.virtualStudios.find((item) => item.id === studioId)
+  state.mcrChains = state.mcrChains.map((chain) => ({
+    ...chain,
+    status: chain.id === studio?.mcrChainId ? 'on-air' : chain.status === 'on-air' ? 'ready' : chain.status,
+    activeStudioId: chain.id === studio?.mcrChainId ? studioId : chain.activeStudioId,
+  }))
+  if (studio) {
+    addEvent(state, 'Virtual studio activated', `${studio.name} moved to live with MCR chain ${studio.mcrChainId}.`)
+  }
+  await writeState(state)
+}
+
+export async function assignObUnit(obUnitId: number, studioId: number) {
+  const state = await readState()
+  state.obUnits = state.obUnits.map((unit) =>
+    unit.id === obUnitId ? { ...unit, activeStudioId: studioId, status: 'on-air' } : unit,
+  )
+  const unit = state.obUnits.find((item) => item.id === obUnitId)
+  if (unit) {
+    addEvent(state, 'OB linked to studio', `${unit.name} assigned to virtual studio ${studioId}.`)
   }
   await writeState(state)
 }
