@@ -1,7 +1,10 @@
 import type {
   AlertRecord,
+  BroadcastControlConfigRecord,
   ConnectorRecord,
   ColorEngineRecord,
+  ControlPageRecord,
+  ControlPanelRecord,
   EquipmentRecord,
   EventRecord,
   GpioRecord,
@@ -21,9 +24,11 @@ import type {
   RouteRecord,
   RunbookRecord,
   SdiBridgeRecord,
+  SalvoRecord,
   ScenarioRecord,
   SenderRecord,
   SiteRecord,
+  TallyUmdRecord,
   TenantRecord,
   UserRecord,
   VirtualStudioRecord,
@@ -65,6 +70,10 @@ type PersistedState = {
   orchestrateRules: OrchestrateRuleRecord[]
   orchestrateLogs: OrchestrateLogRecord[]
   orchestrateCloudMode: 'on-prem' | 'hybrid' | 'cloud'
+  controlPages: ControlPageRecord[]
+  controlPanels: ControlPanelRecord[]
+  controlSalvos: SalvoRecord[]
+  controlTallies: TallyUmdRecord[]
 }
 
 function nowIso() {
@@ -139,6 +148,46 @@ function normalizeBranding(state: PersistedState) {
 
 function seedState(): PersistedState {
   const seen = nowIso()
+  const controlPanels: ControlPanelRecord[] = [
+    { id: 1, workspace: 'operator', zone: 'canvas', order: 1, kind: 'mosaic', title: 'Mosaic Multiview', summary: 'Primary source wall and tally view.', enabled: true },
+    { id: 2, workspace: 'operator', zone: 'canvas', order: 2, kind: 'switcher', title: 'Switcher Surface', summary: 'Program, preview, transitions, and takes.', enabled: true },
+    { id: 3, workspace: 'operator', zone: 'canvas', order: 3, kind: 'shading', title: 'Camera Shading', summary: 'Shader, paint, and iris control.', enabled: true },
+    { id: 4, workspace: 'operator', zone: 'canvas', order: 4, kind: 'audio-monitoring', title: 'Audio Confidence', summary: 'Loudness, phase, and peak monitoring.', enabled: true },
+    { id: 5, workspace: 'operator', zone: 'canvas', order: 5, kind: 'sdi-bridge', title: 'Legacy SDI Bridge', summary: 'SDI and IP interoperability.', enabled: true },
+    { id: 6, workspace: 'operator', zone: 'primary', order: 6, kind: 'orchestrate', title: 'Orchestrate Engine', summary: 'Workflows, macros, rules, and schedules.', enabled: true },
+    { id: 7, workspace: 'operator', zone: 'primary', order: 7, kind: 'routing', title: 'Routing Core', summary: 'Operational route control.', enabled: true },
+    { id: 8, workspace: 'operator', zone: 'primary', order: 8, kind: 'scenarios', title: 'Scenario Control', summary: 'Production scenarios and incident posture.', enabled: true },
+    { id: 9, workspace: 'operator', zone: 'primary', order: 9, kind: 'outside-broadcast', title: 'Outside Broadcast', summary: 'Venue contribution assignment.', enabled: true },
+    { id: 10, workspace: 'operator', zone: 'primary', order: 10, kind: 'virtual-studio', title: 'Virtual Studio and MCR', summary: 'Hybrid gallery and continuity control.', enabled: true },
+    { id: 11, workspace: 'operator', zone: 'sidebar', order: 1, kind: 'session', title: 'Session', summary: 'Current operator identity.', enabled: true },
+    { id: 12, workspace: 'operator', zone: 'sidebar', order: 2, kind: 'active-site', title: 'Active Site', summary: 'Primary context and sync health.', enabled: true },
+    { id: 13, workspace: 'operator', zone: 'sidebar', order: 3, kind: 'event-stream', title: 'Event Stream', summary: 'Live operational audit.', enabled: true },
+    { id: 14, workspace: 'operator', zone: 'sidebar', order: 4, kind: 'jobs', title: 'Jobs', summary: 'Connector job execution.', enabled: true },
+    { id: 15, workspace: 'operator', zone: 'sidebar', order: 5, kind: 'orchestrate-log', title: 'Orchestrate Log', summary: 'Automation execution audit.', enabled: true },
+    { id: 16, workspace: 'engineer', zone: 'primary', order: 1, kind: 'production-monitoring', title: 'Production Monitoring', summary: 'Color, audio, and SDI bridge health.', enabled: true },
+    { id: 17, workspace: 'engineer', zone: 'primary', order: 2, kind: 'manufacturer-catalog', title: 'Manufacturer Ecosystem', summary: 'Supported vendors and modules.', enabled: true },
+    { id: 18, workspace: 'engineer', zone: 'sidebar', order: 1, kind: 'gpio', title: 'GPIO Bridge', summary: 'Legacy control and tally IO.', enabled: true },
+    { id: 19, workspace: 'admin', zone: 'primary', order: 1, kind: 'production-database', title: 'Production Database', summary: 'Saved production setups and resource bindings.', enabled: true },
+    { id: 20, workspace: 'admin', zone: 'primary', order: 2, kind: 'master-control', title: 'Master Control Chains', summary: 'Continuity and playout readiness.', enabled: true },
+    { id: 21, workspace: 'admin', zone: 'primary', order: 3, kind: 'orchestrate', title: 'Orchestrate Control', summary: 'Workflow policy and automation posture.', enabled: true },
+  ]
+  const controlPages: ControlPageRecord[] = [
+    { id: 1, workspace: 'operator', name: 'Production Control', layout: 'control-room', panelIds: controlPanels.filter((panel) => panel.workspace === 'operator').map((panel) => panel.id), active: true },
+    { id: 2, workspace: 'engineer', name: 'Engineering Ops', layout: 'engineering', panelIds: controlPanels.filter((panel) => panel.workspace === 'engineer').map((panel) => panel.id), active: true },
+    { id: 3, workspace: 'admin', name: 'Configuration', layout: 'admin-grid', panelIds: controlPanels.filter((panel) => panel.workspace === 'admin').map((panel) => panel.id), active: true },
+    { id: 4, workspace: 'trainee', name: 'Training', layout: 'training', panelIds: [], active: true },
+  ]
+  const controlSalvos: SalvoRecord[] = [
+    { id: 1, name: 'Show Open', description: 'Sets preview, promotes program, and enables key routes.', mode: 'manual', routeIds: [1, 2], connectorIds: [2, 4, 5], gpioPortIds: [3], tallyIds: [1, 2] },
+    { id: 2, name: 'Commercial Break', description: 'Moves graphics and break routing into place.', mode: 'manual', routeIds: [4], connectorIds: [5, 8], gpioPortIds: [4], tallyIds: [3] },
+    { id: 3, name: 'Disaster Recovery', description: 'Promotes backup pathing and continuity resources.', mode: 'alarm', routeIds: [2, 4], connectorIds: [3, 5, 7], gpioPortIds: [4], tallyIds: [4] },
+  ]
+  const controlTallies: TallyUmdRecord[] = [
+    { id: 1, label: 'CAM-1', source: 'Camera 1', destination: 'Program', program: true, preview: false, status: 'online' },
+    { id: 2, label: 'CAM-2', source: 'Camera 2', destination: 'Preview', program: false, preview: true, status: 'online' },
+    { id: 3, label: 'GFX-1', source: 'Graphics', destination: 'Break Insert', program: false, preview: false, status: 'online' },
+    { id: 4, label: 'DR-BUS', source: 'Backup Feed', destination: 'Recovery Program', program: false, preview: false, status: 'warning' },
+  ]
   return {
     tenants: [
       { id: 1, name: 'Nexus Sports Group', region: 'EMEA', tier: 'Enterprise' },
@@ -319,6 +368,10 @@ function seedState(): PersistedState {
       { id: 2, timestamp: nowClock(), scope: 'RESOURCE', message: 'Hybrid cloud mode available', level: 'ok' },
     ],
     orchestrateCloudMode: 'hybrid',
+    controlPages,
+    controlPanels,
+    controlSalvos,
+    controlTallies,
     productions: [
       {
         id: 1,
@@ -414,6 +467,10 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     orchestrateRules: raw.orchestrateRules ?? seeded.orchestrateRules,
     orchestrateLogs: raw.orchestrateLogs ?? seeded.orchestrateLogs,
     orchestrateCloudMode: raw.orchestrateCloudMode ?? seeded.orchestrateCloudMode,
+    controlPages: raw.controlPages ?? seeded.controlPages,
+    controlPanels: raw.controlPanels ?? seeded.controlPanels,
+    controlSalvos: raw.controlSalvos ?? seeded.controlSalvos,
+    controlTallies: raw.controlTallies ?? seeded.controlTallies,
   }
 
   normalizeBranding(state)
@@ -541,6 +598,13 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
       logs: state.orchestrateLogs,
       cloudMode: state.orchestrateCloudMode,
     },
+    controlConfig: {
+      version: '1.0',
+      pages: state.controlPages,
+      panels: state.controlPanels,
+      salvos: state.controlSalvos,
+      tallies: state.controlTallies,
+    },
   }
 }
 
@@ -627,6 +691,64 @@ export async function setOrchestrateCloudMode(mode: PersistedState['orchestrateC
   addOrchestrateLog(state, 'CLOUD', `Cloud mode set to ${mode}.`, 'ok')
   await writeState(state)
   return mode
+}
+
+export async function toggleControlPanel(panelId: number) {
+  const state = await readState()
+  state.controlPanels = state.controlPanels.map((panel) =>
+    panel.id === panelId ? { ...panel, enabled: !panel.enabled } : panel,
+  )
+  const panel = state.controlPanels.find((item) => item.id === panelId)
+  if (panel) {
+    addEvent(state, 'Control panel updated', `${panel.title} is now ${panel.enabled ? 'enabled' : 'disabled'}.`)
+  }
+  await writeState(state)
+  return panel
+}
+
+export async function activateControlPage(pageId: number) {
+  const state = await readState()
+  const page = state.controlPages.find((item) => item.id === pageId)
+  if (!page) {
+    throw new Error('Control page not found.')
+  }
+  state.controlPages = state.controlPages.map((item) =>
+    item.workspace === page.workspace ? { ...item, active: item.id === pageId } : item,
+  )
+  addEvent(state, 'Control page activated', `${page.name} is now the active ${page.workspace} layout.`)
+  await writeState(state)
+  return page
+}
+
+export async function runControlSalvo(salvoId: number) {
+  const state = await readState()
+  const salvo = state.controlSalvos.find((item) => item.id === salvoId)
+  if (!salvo) {
+    throw new Error('Salvo not found.')
+  }
+
+  state.routes = state.routes.map((route) => ({
+    ...route,
+    state: salvo.routeIds.includes(route.id) ? 'active' : route.state === 'active' ? 'standby' : route.state,
+  }))
+  state.connectors = state.connectors.map((connector) => ({
+    ...connector,
+    status: salvo.connectorIds.includes(connector.id) ? 'connected' : connector.status,
+  }))
+  state.gpioPorts = state.gpioPorts.map((port) => ({
+    ...port,
+    state: salvo.gpioPortIds.includes(port.id) ? 1 : port.state,
+  }))
+  state.controlTallies = state.controlTallies.map((tally) => ({
+    ...tally,
+    program: salvo.tallyIds.includes(tally.id) ? true : tally.program,
+    preview: salvo.tallyIds.includes(tally.id) ? false : tally.preview,
+  }))
+
+  addEvent(state, 'Salvo executed', `${salvo.name} applied ${salvo.routeIds.length} routes and ${salvo.connectorIds.length} connectors.`)
+  addOrchestrateLog(state, 'SALVO', `${salvo.name} executed in ${salvo.mode} mode.`, 'ok')
+  await writeState(state)
+  return salvo
 }
 
 export async function listProductionSetups() {

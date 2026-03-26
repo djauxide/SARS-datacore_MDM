@@ -126,6 +126,17 @@ export default function NexusEnterprisePage() {
   }, [session, users])
 
   const activeSite = useMemo(() => snapshot?.sites.find((site) => site.id === session?.siteId) ?? snapshot?.sites[0], [session, snapshot])
+  const activeControlPage = useMemo(
+    () => snapshot?.controlConfig.pages.find((page) => page.workspace === workspace && page.active) ?? null,
+    [snapshot, workspace],
+  )
+  const workspacePanels = useMemo(
+    () =>
+      snapshot?.controlConfig.panels
+        .filter((panel) => panel.workspace === workspace)
+        .sort((a, b) => a.order - b.order) ?? [],
+    [snapshot, workspace],
+  )
   const currentProduction = useMemo(
     () => snapshot?.productions.find((production) => production.id === snapshot.activeProductionId) ?? snapshot?.productions[0] ?? null,
     [snapshot],
@@ -381,6 +392,36 @@ export default function NexusEnterprisePage() {
     setBusyAction(null)
   }
 
+  const activateControlPage = async (pageId: number) => {
+    setBusyAction(`control-page-${pageId}`)
+    await requestJson('/api/control-config', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'activate-page', pageId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const toggleControlPanel = async (panelId: number) => {
+    setBusyAction(`control-panel-${panelId}`)
+    await requestJson('/api/control-config', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'toggle-panel', panelId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const runSalvo = async (salvoId: number) => {
+    setBusyAction(`salvo-${salvoId}`)
+    await requestJson('/api/control-config', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'run-salvo', salvoId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
   const runOrchestrateWorkflow = async (workflowId: number) => {
     setBusyAction(`orch-workflow-${workflowId}`)
     await requestJson('/api/orchestrate', {
@@ -508,6 +549,12 @@ export default function NexusEnterprisePage() {
                 {workspaceCopy[workspace].summary}
               </p>
             </div>
+            {activeControlPage ? (
+              <div className="trainingMeta" style={{ marginTop: 12 }}>
+                <small>{activeControlPage.name}</small>
+                <small>{activeControlPage.layout}</small>
+              </div>
+            ) : null}
           </article>
 
           {workspace === 'operator' && snapshot ? (
@@ -522,10 +569,19 @@ export default function NexusEnterprisePage() {
                     </div>
                   </div>
                   <div className="canvasTabs">
-                    <span className="canvasTab active">Live</span>
-                    <span className="canvasTab">Routing</span>
-                    <span className="canvasTab">Shading</span>
-                    <span className="canvasTab">Monitoring</span>
+                    {snapshot.controlConfig.pages
+                      .filter((page) => page.workspace === 'operator')
+                      .map((page) => (
+                        <button
+                          key={page.id}
+                          type="button"
+                          className={page.active ? 'canvasTab active' : 'canvasTab'}
+                          onClick={() => void activateControlPage(page.id)}
+                          disabled={busyAction === `control-page-${page.id}`}
+                        >
+                          {page.name}
+                        </button>
+                      ))}
                   </div>
                   <div className="canvasMeta">
                     <span className="statusPill live">ptp locked</span>
@@ -537,11 +593,19 @@ export default function NexusEnterprisePage() {
                   <aside className="canvasSidebar">
                     <div className="canvasSidebarSection">
                       <span className="canvasSidebarLabel">Control modes</span>
-                      <button type="button" className="canvasSidebarItem active">Mosaic multiview</button>
-                      <button type="button" className="canvasSidebarItem">Virtual switcher</button>
-                      <button type="button" className="canvasSidebarItem">Camera shading</button>
-                      <button type="button" className="canvasSidebarItem">Audio and video QC</button>
-                      <button type="button" className="canvasSidebarItem">MCR continuity</button>
+                      {workspacePanels
+                        .filter((panel) => panel.zone === 'canvas')
+                        .map((panel) => (
+                          <button
+                            key={panel.id}
+                            type="button"
+                            className={panel.enabled ? 'canvasSidebarItem active' : 'canvasSidebarItem'}
+                            onClick={() => void toggleControlPanel(panel.id)}
+                            disabled={busyAction === `control-panel-${panel.id}`}
+                          >
+                            {busyAction === `control-panel-${panel.id}` ? 'Updating...' : panel.title}
+                          </button>
+                        ))}
                     </div>
                     <div className="canvasSidebarSection">
                       <span className="canvasSidebarLabel">Health</span>
@@ -810,6 +874,17 @@ export default function NexusEnterprisePage() {
                       >
                         Breaking mode
                       </button>
+                      {snapshot.controlConfig.salvos.slice(0, 2).map((salvo) => (
+                        <button
+                          key={salvo.id}
+                          type="button"
+                          className="ghostButton"
+                          onClick={() => void runSalvo(salvo.id)}
+                          disabled={busyAction === `salvo-${salvo.id}`}
+                        >
+                          {busyAction === `salvo-${salvo.id}` ? 'Applying...' : salvo.name}
+                        </button>
+                      ))}
                     </div>
                     <div className="trainingMeta" style={{ marginTop: 16 }}>
                       <small>{currentProduction ? `Production: ${currentProduction.name}` : 'No production active'}</small>
@@ -1515,6 +1590,88 @@ export default function NexusEnterprisePage() {
                       </article>
                     )
                   })}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Control configuration</p>
+                    <h2>Config-driven pages, panels, salvos, and tallies</h2>
+                  </div>
+                </div>
+                <div className="manufacturerGrid">
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">pages</span>
+                      <small>{snapshot.controlConfig.version}</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.controlConfig.pages.map((page) => (
+                        <div key={page.id} className="selectionBar">
+                          <p>
+                            {page.workspace} • {page.name} • {page.layout}
+                          </p>
+                          <button
+                            type="button"
+                            className={page.active ? 'tinyButton protected' : 'tinyButton'}
+                            onClick={() => void activateControlPage(page.id)}
+                            disabled={busyAction === `control-page-${page.id}`}
+                          >
+                            {busyAction === `control-page-${page.id}` ? '...' : page.active ? 'LIVE' : 'ACTIVATE'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">panels</span>
+                      <small>{snapshot.controlConfig.panels.length} registered</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.controlConfig.panels.slice(0, 8).map((panel) => (
+                        <div key={panel.id} className="selectionBar">
+                          <p>
+                            {panel.workspace} • {panel.title} • {panel.zone}
+                          </p>
+                          <button
+                            type="button"
+                            className={panel.enabled ? 'tinyButton protected' : 'tinyButton'}
+                            onClick={() => void toggleControlPanel(panel.id)}
+                            disabled={busyAction === `control-panel-${panel.id}`}
+                          >
+                            {busyAction === `control-panel-${panel.id}` ? '...' : panel.enabled ? 'ON' : 'OFF'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">salvos</span>
+                      <small>{snapshot.controlConfig.tallies.length} tallies</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.controlConfig.salvos.map((salvo) => (
+                        <div key={salvo.id} className="selectionBar">
+                          <p>
+                            {salvo.name} • {salvo.mode} • {salvo.description}
+                          </p>
+                          <button
+                            type="button"
+                            className="tinyButton protected"
+                            onClick={() => void runSalvo(salvo.id)}
+                            disabled={busyAction === `salvo-${salvo.id}`}
+                          >
+                            {busyAction === `salvo-${salvo.id}` ? '...' : 'RUN'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
                 </div>
               </article>
 

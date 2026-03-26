@@ -287,6 +287,79 @@ export type OrchestrateLogRecord = {
   level: 'ok' | 'warn' | 'err'
 }
 
+export type ControlWorkspace = 'operator' | 'engineer' | 'admin' | 'trainee'
+
+export type ControlPanelKind =
+  | 'mosaic'
+  | 'switcher'
+  | 'shading'
+  | 'audio-monitoring'
+  | 'sdi-bridge'
+  | 'orchestrate'
+  | 'routing'
+  | 'scenarios'
+  | 'outside-broadcast'
+  | 'virtual-studio'
+  | 'production-monitoring'
+  | 'manufacturer-catalog'
+  | 'production-database'
+  | 'master-control'
+  | 'session'
+  | 'active-site'
+  | 'event-stream'
+  | 'jobs'
+  | 'orchestrate-log'
+  | 'gpio'
+
+export type ControlPanelRecord = {
+  id: number
+  workspace: ControlWorkspace
+  zone: 'primary' | 'canvas' | 'sidebar'
+  order: number
+  kind: ControlPanelKind
+  title: string
+  summary: string
+  enabled: boolean
+}
+
+export type ControlPageRecord = {
+  id: number
+  workspace: ControlWorkspace
+  name: string
+  layout: 'control-room' | 'engineering' | 'admin-grid' | 'training'
+  panelIds: number[]
+  active: boolean
+}
+
+export type SalvoRecord = {
+  id: number
+  name: string
+  description: string
+  mode: 'manual' | 'alarm' | 'schedule'
+  routeIds: number[]
+  connectorIds: number[]
+  gpioPortIds: number[]
+  tallyIds: number[]
+}
+
+export type TallyUmdRecord = {
+  id: number
+  label: string
+  source: string
+  destination: string
+  program: boolean
+  preview: boolean
+  status: 'online' | 'warning'
+}
+
+export type BroadcastControlConfigRecord = {
+  version: string
+  pages: ControlPageRecord[]
+  panels: ControlPanelRecord[]
+  salvos: SalvoRecord[]
+  tallies: TallyUmdRecord[]
+}
+
 export type PlatformSnapshot = {
   generatedAt: string
   facilities: string[]
@@ -334,6 +407,7 @@ export type PlatformSnapshot = {
     logs: OrchestrateLogRecord[]
     cloudMode: 'on-prem' | 'hybrid' | 'cloud'
   }
+  controlConfig: BroadcastControlConfigRecord
 }
 
 export type SessionRecord = {
