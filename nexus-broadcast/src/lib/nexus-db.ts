@@ -10,6 +10,11 @@ import type {
   NmosFlowRecord,
   NmosNodeRecord,
   ObUnitRecord,
+  OrchestrateLogRecord,
+  OrchestrateMacroRecord,
+  OrchestrateRuleRecord,
+  OrchestrateScheduleRecord,
+  OrchestrateWorkflowRecord,
   PlatformSnapshot,
   ProductionSetupRecord,
   ReceiverRecord,
@@ -54,6 +59,12 @@ type PersistedState = {
   colorEngines: ColorEngineRecord[]
   audioMonitors: AudioMonitorRecord[]
   sdiBridges: SdiBridgeRecord[]
+  orchestrateWorkflows: OrchestrateWorkflowRecord[]
+  orchestrateMacros: OrchestrateMacroRecord[]
+  orchestrateSchedules: OrchestrateScheduleRecord[]
+  orchestrateRules: OrchestrateRuleRecord[]
+  orchestrateLogs: OrchestrateLogRecord[]
+  orchestrateCloudMode: 'on-prem' | 'hybrid' | 'cloud'
 }
 
 function nowIso() {
@@ -247,6 +258,67 @@ function seedState(): PersistedState {
       { id: 2, name: 'Bridge CPT-Edge', siteId: 102, mode: 'hybrid', ioCount: '16x16', reference: 'Tri-level', status: 'online' },
       { id: 3, name: 'Bridge Legacy MCR', siteId: 103, mode: 'IP-SDI', ioCount: '8x8', reference: 'Black Burst', status: 'degraded' },
     ],
+    orchestrateWorkflows: [
+      {
+        id: 1,
+        name: 'SHOW-START',
+        trigger: 'manual',
+        condition: '',
+        status: 'idle',
+        lastRun: '—',
+        steps: [
+          { command: 'SET PVW CAM-2', durationSec: 1 },
+          { command: 'LOAD LOWER-THIRD', durationSec: 1 },
+          { command: 'TAKE', durationSec: 1 },
+        ],
+      },
+      {
+        id: 2,
+        name: 'FAILOVER-AUTO',
+        trigger: 'alarm',
+        condition: 'ALARM:SDI-LOSS',
+        status: 'armed',
+        lastRun: '—',
+        steps: [
+          { command: 'ROUTE SDI-B > PGM', durationSec: 1 },
+          { command: 'SET CLOUD MODE HYBRID', durationSec: 1 },
+          { command: 'NOTIFY FAILOVER COMPLETE', durationSec: 1 },
+        ],
+      },
+      {
+        id: 3,
+        name: 'BREAK-SEQUENCE',
+        trigger: 'rundown',
+        condition: 'RUNDOWN:BREAK',
+        status: 'idle',
+        lastRun: '—',
+        steps: [
+          { command: 'SET PVW GFX-1', durationSec: 1 },
+          { command: 'AUTO', durationSec: 2 },
+          { command: 'MUTE CH 1 / CH 2', durationSec: 1 },
+        ],
+      },
+    ],
+    orchestrateMacros: [
+      { id: 1, name: 'QUICK-TAKE', trigger: 'manual', body: ['SET PVW CAM-2', 'TAKE'] },
+      { id: 2, name: 'GFX-LOWER', trigger: 'manual', body: ['LOAD GFX LOWER-THIRD', 'WAIT 5s', 'CLEAR GFX'] },
+      { id: 3, name: 'EMERGENCY-BLACK', trigger: 'alarm', body: ['SET PGM BLACK', 'MUTE CH 1', 'MUTE CH 2'] },
+    ],
+    orchestrateSchedules: [
+      { id: 1, time: '08:30', workflowName: 'SHOW-START', days: 'M T W T F', enabled: true },
+      { id: 2, time: '12:00', workflowName: 'BREAK-SEQUENCE', days: 'M T W T F', enabled: true },
+      { id: 3, time: '18:00', workflowName: 'SHOW-END', days: 'M T W T F', enabled: false },
+    ],
+    orchestrateRules: [
+      { id: 1, trigger: 'ALARM:SDI-LOSS', action: 'RUN FAILOVER-AUTO', enabled: true },
+      { id: 2, trigger: 'ALARM:AUDIO-LOSS', action: 'MUTE CH 1; MUTE CH 2', enabled: true },
+      { id: 3, trigger: 'RUNDOWN:BREAK', action: 'RUN BREAK-SEQUENCE', enabled: false },
+    ],
+    orchestrateLogs: [
+      { id: 1, timestamp: nowClock(), scope: 'SYSTEM', message: 'Orchestrate engine initialized', level: 'ok' },
+      { id: 2, timestamp: nowClock(), scope: 'RESOURCE', message: 'Hybrid cloud mode available', level: 'ok' },
+    ],
+    orchestrateCloudMode: 'hybrid',
     productions: [
       {
         id: 1,
@@ -336,6 +408,12 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     colorEngines: raw.colorEngines ?? seeded.colorEngines,
     audioMonitors: raw.audioMonitors ?? seeded.audioMonitors,
     sdiBridges: raw.sdiBridges ?? seeded.sdiBridges,
+    orchestrateWorkflows: raw.orchestrateWorkflows ?? seeded.orchestrateWorkflows,
+    orchestrateMacros: raw.orchestrateMacros ?? seeded.orchestrateMacros,
+    orchestrateSchedules: raw.orchestrateSchedules ?? seeded.orchestrateSchedules,
+    orchestrateRules: raw.orchestrateRules ?? seeded.orchestrateRules,
+    orchestrateLogs: raw.orchestrateLogs ?? seeded.orchestrateLogs,
+    orchestrateCloudMode: raw.orchestrateCloudMode ?? seeded.orchestrateCloudMode,
   }
 
   normalizeBranding(state)
@@ -407,6 +485,8 @@ function refreshTelemetry(state: PersistedState) {
     const confidence = loudnessLufs > -20.0 || peakDbfs > -6.0 ? 'warning' : 'stable'
     return { ...monitor, loudnessLufs, peakDbfs, confidence }
   })
+
+  state.orchestrateLogs = state.orchestrateLogs.slice(0, 30)
 }
 
 export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
@@ -453,7 +533,100 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
     colorEngines: state.colorEngines,
     audioMonitors: state.audioMonitors,
     sdiBridges: state.sdiBridges,
+    orchestrate: {
+      workflows: state.orchestrateWorkflows,
+      macros: state.orchestrateMacros,
+      schedules: state.orchestrateSchedules,
+      rules: state.orchestrateRules,
+      logs: state.orchestrateLogs,
+      cloudMode: state.orchestrateCloudMode,
+    },
   }
+}
+
+function addOrchestrateLog(state: PersistedState, scope: string, message: string, level: OrchestrateLogRecord['level']) {
+  state.orchestrateLogs.unshift({
+    id: Date.now(),
+    timestamp: nowClock(),
+    scope,
+    message,
+    level,
+  })
+}
+
+export async function runOrchestrateWorkflow(workflowId: number) {
+  const state = await readState()
+  const workflow = state.orchestrateWorkflows.find((item) => item.id === workflowId)
+  if (!workflow) {
+    throw new Error('Workflow not found.')
+  }
+
+  state.orchestrateWorkflows = state.orchestrateWorkflows.map((item) =>
+    item.id === workflowId ? { ...item, status: 'running', lastRun: nowClock() } : item,
+  )
+  addOrchestrateLog(state, workflow.name, `Workflow run started with ${workflow.steps.length} steps.`, 'ok')
+  workflow.steps.forEach((step, index) => {
+    addOrchestrateLog(state, workflow.name, `Step ${index + 1}: ${step.command}`, 'ok')
+  })
+  state.orchestrateWorkflows = state.orchestrateWorkflows.map((item) =>
+    item.id === workflowId ? { ...item, status: item.trigger === 'alarm' ? 'armed' : 'idle', lastRun: nowClock() } : item,
+  )
+  addEvent(state, 'Orchestrate workflow executed', `${workflow.name} completed through the control engine.`)
+  await writeState(state)
+  return workflow
+}
+
+export async function toggleOrchestrateRule(ruleId: number) {
+  const state = await readState()
+  state.orchestrateRules = state.orchestrateRules.map((rule) =>
+    rule.id === ruleId ? { ...rule, enabled: !rule.enabled } : rule,
+  )
+  const rule = state.orchestrateRules.find((item) => item.id === ruleId)
+  if (rule) {
+    addOrchestrateLog(state, 'RULE', `${rule.trigger} is now ${rule.enabled ? 'enabled' : 'disabled'}.`, rule.enabled ? 'ok' : 'warn')
+  }
+  await writeState(state)
+  return rule
+}
+
+export async function toggleOrchestrateSchedule(scheduleId: number) {
+  const state = await readState()
+  state.orchestrateSchedules = state.orchestrateSchedules.map((schedule) =>
+    schedule.id === scheduleId ? { ...schedule, enabled: !schedule.enabled } : schedule,
+  )
+  const schedule = state.orchestrateSchedules.find((item) => item.id === scheduleId)
+  if (schedule) {
+    addOrchestrateLog(
+      state,
+      'SCHEDULE',
+      `${schedule.workflowName} at ${schedule.time} is now ${schedule.enabled ? 'enabled' : 'disabled'}.`,
+      schedule.enabled ? 'ok' : 'warn',
+    )
+  }
+  await writeState(state)
+  return schedule
+}
+
+export async function runOrchestrateMacro(macroId: number) {
+  const state = await readState()
+  const macro = state.orchestrateMacros.find((item) => item.id === macroId)
+  if (!macro) {
+    throw new Error('Macro not found.')
+  }
+  addOrchestrateLog(state, macro.name, `Macro executed with ${macro.body.length} commands.`, 'ok')
+  macro.body.forEach((command, index) => {
+    addOrchestrateLog(state, macro.name, `Command ${index + 1}: ${command}`, 'ok')
+  })
+  await writeState(state)
+  return macro
+}
+
+export async function setOrchestrateCloudMode(mode: PersistedState['orchestrateCloudMode']) {
+  const state = await readState()
+  state.orchestrateCloudMode = mode
+  addOrchestrateLog(state, 'CLOUD', `Cloud mode set to ${mode}.`, 'ok')
+  await writeState(state)
+  return mode
 }
 
 export async function listProductionSetups() {

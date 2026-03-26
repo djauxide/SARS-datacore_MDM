@@ -381,6 +381,56 @@ export default function NexusEnterprisePage() {
     setBusyAction(null)
   }
 
+  const runOrchestrateWorkflow = async (workflowId: number) => {
+    setBusyAction(`orch-workflow-${workflowId}`)
+    await requestJson('/api/orchestrate', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'run-workflow', workflowId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const runOrchestrateMacro = async (macroId: number) => {
+    setBusyAction(`orch-macro-${macroId}`)
+    await requestJson('/api/orchestrate', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'run-macro', macroId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const toggleOrchestrateRule = async (ruleId: number) => {
+    setBusyAction(`orch-rule-${ruleId}`)
+    await requestJson('/api/orchestrate', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'toggle-rule', ruleId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const toggleOrchestrateSchedule = async (scheduleId: number) => {
+    setBusyAction(`orch-schedule-${scheduleId}`)
+    await requestJson('/api/orchestrate', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'toggle-schedule', scheduleId }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const setCloudMode = async (mode: 'on-prem' | 'hybrid' | 'cloud') => {
+    setBusyAction(`orch-cloud-${mode}`)
+    await requestJson('/api/orchestrate', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'set-cloud-mode', mode }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
   return (
     <main className="shell">
       <section className="hero">
@@ -818,6 +868,126 @@ export default function NexusEnterprisePage() {
                       </div>
                     </article>
                   </section>
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Orchestrate engine</p>
+                    <h2>Workflows, macros, schedule, and cloud mode</h2>
+                  </div>
+                  <div className="buttonRow">
+                    {(['on-prem', 'hybrid', 'cloud'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        className={snapshot.orchestrate.cloudMode === mode ? 'ghostButton activeToggle' : 'ghostButton'}
+                        onClick={() => void setCloudMode(mode)}
+                        disabled={busyAction === `orch-cloud-${mode}`}
+                      >
+                        {busyAction === `orch-cloud-${mode}` ? 'Switching...' : mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="manufacturerGrid">
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">workflows</span>
+                      <small>triggered control logic</small>
+                    </div>
+                    <div className="alertList">
+                      {snapshot.orchestrate.workflows.map((workflow) => (
+                        <article key={workflow.id} className="alertCard info">
+                          <div>
+                            <strong>{workflow.name}</strong>
+                            <p>
+                              {workflow.trigger} {workflow.condition ? `• ${workflow.condition}` : ''}
+                            </p>
+                          </div>
+                          <div className="alertFooter">
+                            <span>{workflow.status}</span>
+                            <button
+                              type="button"
+                              className="ghostButton"
+                              onClick={() => void runOrchestrateWorkflow(workflow.id)}
+                              disabled={busyAction === `orch-workflow-${workflow.id}`}
+                            >
+                              {busyAction === `orch-workflow-${workflow.id}` ? 'Running...' : 'Run'}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">macros</span>
+                      <small>quick control actions</small>
+                    </div>
+                    <div className="alertList">
+                      {snapshot.orchestrate.macros.map((macro) => (
+                        <article key={macro.id} className="alertCard info">
+                          <div>
+                            <strong>{macro.name}</strong>
+                            <p>{macro.body.join(' • ')}</p>
+                          </div>
+                          <div className="alertFooter">
+                            <span>{macro.trigger}</span>
+                            <button
+                              type="button"
+                              className="ghostButton"
+                              onClick={() => void runOrchestrateMacro(macro.id)}
+                              disabled={busyAction === `orch-macro-${macro.id}`}
+                            >
+                              {busyAction === `orch-macro-${macro.id}` ? 'Running...' : 'Run'}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">rules and schedule</span>
+                      <small>automation posture</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.orchestrate.rules.map((rule) => (
+                        <div key={rule.id} className="selectionBar">
+                          <p>
+                            {rule.trigger} {'->'} {rule.action}
+                          </p>
+                          <button
+                            type="button"
+                            className={rule.enabled ? 'tinyButton protected' : 'tinyButton'}
+                            onClick={() => void toggleOrchestrateRule(rule.id)}
+                            disabled={busyAction === `orch-rule-${rule.id}`}
+                          >
+                            {busyAction === `orch-rule-${rule.id}` ? '...' : rule.enabled ? 'ON' : 'OFF'}
+                          </button>
+                        </div>
+                      ))}
+                      {snapshot.orchestrate.schedules.map((schedule) => (
+                        <div key={schedule.id} className="selectionBar">
+                          <p>
+                            {schedule.time} • {schedule.workflowName} • {schedule.days}
+                          </p>
+                          <button
+                            type="button"
+                            className={schedule.enabled ? 'tinyButton protected' : 'tinyButton'}
+                            onClick={() => void toggleOrchestrateSchedule(schedule.id)}
+                            disabled={busyAction === `orch-schedule-${schedule.id}`}
+                          >
+                            {busyAction === `orch-schedule-${schedule.id}` ? '...' : schedule.enabled ? 'ON' : 'OFF'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
                 </div>
               </article>
 
@@ -1408,6 +1578,58 @@ export default function NexusEnterprisePage() {
                   })}
                 </div>
               </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Orchestrate control</p>
+                    <h2>Workflow logic, scheduling, and execution policy</h2>
+                  </div>
+                </div>
+                <div className="manufacturerGrid">
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">workflow</span>
+                      <small>{snapshot.orchestrate.workflows.length} definitions</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.orchestrate.workflows.map((workflow) => (
+                        <small key={workflow.id}>
+                          {workflow.name} • {workflow.trigger} • {workflow.steps.length} steps • {workflow.status}
+                        </small>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">schedule</span>
+                      <small>{snapshot.orchestrate.cloudMode} cloud mode</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.orchestrate.schedules.map((schedule) => (
+                        <small key={schedule.id}>
+                          {schedule.time} • {schedule.workflowName} • {schedule.days} • {schedule.enabled ? 'enabled' : 'disabled'}
+                        </small>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">rules</span>
+                      <small>{snapshot.orchestrate.logs.length} execution entries</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.orchestrate.rules.map((rule) => (
+                        <small key={rule.id}>
+                          {rule.trigger} • {rule.action} • {rule.enabled ? 'armed' : 'off'}
+                        </small>
+                      ))}
+                    </div>
+                  </article>
+                </div>
+              </article>
             </>
           ) : null}
         </div>
@@ -1490,6 +1712,29 @@ export default function NexusEnterprisePage() {
                   <div className="alertFooter">
                     <span>{job.state}</span>
                     <small>{job.createdAt}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel compactPanel">
+            <div className="panelHeader">
+              <div>
+                <p className="panelLabel">Orchestrate log</p>
+                <h2>Engine execution audit</h2>
+              </div>
+            </div>
+            <div className="alertList">
+              {snapshot?.orchestrate.logs.slice(0, 8).map((entry) => (
+                <article key={entry.id} className={`alertCard ${entry.level === 'err' ? 'critical' : entry.level === 'warn' ? 'warning' : 'info'}`}>
+                  <div>
+                    <strong>{entry.scope}</strong>
+                    <p>{entry.message}</p>
+                  </div>
+                  <div className="alertFooter">
+                    <span>{entry.level}</span>
+                    <small>{entry.timestamp}</small>
                   </div>
                 </article>
               ))}

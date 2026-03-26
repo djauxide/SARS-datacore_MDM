@@ -247,6 +247,46 @@ export type ProductionSetupRecord = {
   notes: string
 }
 
+export type OrchestrateWorkflowRecord = {
+  id: number
+  name: string
+  trigger: 'manual' | 'alarm' | 'schedule' | 'rundown'
+  condition: string
+  status: 'idle' | 'running' | 'armed' | 'error'
+  lastRun: string
+  steps: { command: string; durationSec: number }[]
+}
+
+export type OrchestrateMacroRecord = {
+  id: number
+  name: string
+  trigger: 'manual' | 'alarm' | 'schedule'
+  body: string[]
+}
+
+export type OrchestrateScheduleRecord = {
+  id: number
+  time: string
+  workflowName: string
+  days: string
+  enabled: boolean
+}
+
+export type OrchestrateRuleRecord = {
+  id: number
+  trigger: string
+  action: string
+  enabled: boolean
+}
+
+export type OrchestrateLogRecord = {
+  id: number
+  timestamp: string
+  scope: string
+  message: string
+  level: 'ok' | 'warn' | 'err'
+}
+
 export type PlatformSnapshot = {
   generatedAt: string
   facilities: string[]
@@ -286,6 +326,14 @@ export type PlatformSnapshot = {
   colorEngines: ColorEngineRecord[]
   audioMonitors: AudioMonitorRecord[]
   sdiBridges: SdiBridgeRecord[]
+  orchestrate: {
+    workflows: OrchestrateWorkflowRecord[]
+    macros: OrchestrateMacroRecord[]
+    schedules: OrchestrateScheduleRecord[]
+    rules: OrchestrateRuleRecord[]
+    logs: OrchestrateLogRecord[]
+    cloudMode: 'on-prem' | 'hybrid' | 'cloud'
+  }
 }
 
 export type SessionRecord = {
