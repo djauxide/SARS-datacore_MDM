@@ -59,6 +59,64 @@ function nowClock() {
   }).format(new Date())
 }
 
+function rewriteBranding(value: string) {
+  return value
+    .replaceAll('Grass Valley', 'Nexus')
+    .replaceAll('GV Router Bridge', 'Nexus Router Bridge')
+    .replaceAll('GV Native + GPIO', 'Nexus Control + GPIO')
+    .replaceAll('GV', 'Nexus')
+    .replaceAll('EVS Neuron Gateway', 'Nexus Gateway Engine')
+    .replaceAll('EVS', 'Nexus')
+    .replaceAll('Neuron Bridge 01', 'Nexus Gateway 01')
+    .replaceAll('Neuron Gateway A', 'Nexus Gateway A')
+    .replaceAll('Neuron', 'Nexus Gateway')
+    .replaceAll('AMPP Burst Pod', 'Nexus Burst Pod')
+    .replaceAll('AMPP Edge', 'Nexus Edge')
+    .replaceAll('AMPP Playout', 'Nexus Cloud Playout')
+    .replaceAll('Cerebrum', 'Nexus Orchestrate')
+    .replaceAll('NEP', 'Nexus')
+}
+
+function normalizeBranding(state: PersistedState) {
+  state.connectors = state.connectors.map((connector) => ({
+    ...connector,
+    name: rewriteBranding(connector.name),
+    vendor: rewriteBranding(connector.vendor),
+    protocol: rewriteBranding(connector.protocol),
+  }))
+
+  state.routes = state.routes.map((route) => ({
+    ...route,
+    controller: rewriteBranding(route.controller),
+  }))
+
+  state.workflows = state.workflows.map((workflow) => ({
+    ...workflow,
+    target: rewriteBranding(workflow.target),
+  }))
+
+  state.equipment = state.equipment.map((item) => ({
+    ...item,
+    name: rewriteBranding(item.name),
+    vendor: rewriteBranding(item.vendor),
+    model: rewriteBranding(item.model),
+    protocols: item.protocols.map((protocol) => rewriteBranding(protocol)),
+  }))
+
+  state.mcrChains = state.mcrChains.map((chain) => ({
+    ...chain,
+    playout: rewriteBranding(chain.playout),
+    ingest: rewriteBranding(chain.ingest),
+    compliance: rewriteBranding(chain.compliance),
+    distribution: rewriteBranding(chain.distribution),
+  }))
+
+  state.events = state.events.map((event) => ({
+    ...event,
+    detail: rewriteBranding(event.detail),
+  }))
+}
+
 function seedState(): PersistedState {
   const seen = nowIso()
   return {
@@ -80,30 +138,30 @@ function seedState(): PersistedState {
     ],
     connectors: [
       { id: 1, siteId: 101, name: 'NMOS Registry Core', type: 'NMOS', vendor: 'Nexus', status: 'connected', protocol: 'IS-04 / IS-05', lastSync: seen },
-      { id: 2, siteId: 101, name: 'GV Router Bridge', type: 'Router', vendor: 'Grass Valley', status: 'connected', protocol: 'GV Native + GPIO', lastSync: seen },
-      { id: 3, siteId: 103, name: 'EVS Neuron Gateway', type: 'Replay', vendor: 'EVS', status: 'degraded', protocol: 'Neuron + NMOS', lastSync: seen },
+      { id: 2, siteId: 101, name: 'Nexus Router Bridge', type: 'Router', vendor: 'Nexus', status: 'connected', protocol: 'Nexus Control + GPIO', lastSync: seen },
+      { id: 3, siteId: 103, name: 'Nexus Gateway Engine', type: 'Replay', vendor: 'Nexus', status: 'degraded', protocol: 'Nexus Gateway + NMOS', lastSync: seen },
       { id: 4, siteId: 102, name: 'Lawo Audio Core', type: 'Audio', vendor: 'Lawo', status: 'connected', protocol: 'AES67 + Ember+', lastSync: seen },
       { id: 5, siteId: 101, name: 'Cloud Burst Control', type: 'Cloud', vendor: 'Nexus', status: 'connected', protocol: 'HTTPS + WebSocket', lastSync: seen },
-      { id: 6, siteId: 101, name: 'Legacy GPIO Rack', type: 'GPIO', vendor: 'Grass Valley', status: 'connected', protocol: 'GPI/GPO', lastSync: seen },
+      { id: 6, siteId: 101, name: 'Legacy GPIO Rack', type: 'GPIO', vendor: 'Nexus', status: 'connected', protocol: 'GPI/GPO', lastSync: seen },
     ],
     routes: [
-      { id: 1, source: 'Studio 1 Program', destination: 'Cloud Switcher A', siteId: 101, controller: 'GV Router Bridge', transport: 'ST 2110-20', state: 'active', protected: true },
-      { id: 2, source: 'Replay A', destination: 'Program Bus B', siteId: 101, controller: 'EVS Neuron Gateway', transport: 'ST 2110-22', state: 'standby', protected: true },
+      { id: 1, source: 'Studio 1 Program', destination: 'Cloud Switcher A', siteId: 101, controller: 'Nexus Router Bridge', transport: 'ST 2110-20', state: 'active', protected: true },
+      { id: 2, source: 'Replay A', destination: 'Program Bus B', siteId: 101, controller: 'Nexus Gateway Engine', transport: 'ST 2110-22', state: 'standby', protected: true },
       { id: 3, source: 'Commentary A', destination: 'Audio Core', siteId: 102, controller: 'Lawo Audio Core', transport: 'AES67', state: 'active', protected: false },
       { id: 4, source: 'Breaking News Feed', destination: 'FAST Output', siteId: 103, controller: 'Cloud Burst Control', transport: 'SRT', state: 'blocked', protected: true },
     ],
     workflows: [
       { id: 1, name: 'Provision Remote Gallery', category: 'provisioning', target: 'Cloud Burst Control', state: 'idle', lastRun: 'Today 10:14' },
-      { id: 2, name: 'Failover Contribution Path', category: 'failover', target: 'EVS Neuron Gateway', state: 'idle', lastRun: 'Today 09:22' },
+      { id: 2, name: 'Failover Contribution Path', category: 'failover', target: 'Nexus Gateway Engine', state: 'idle', lastRun: 'Today 09:22' },
       { id: 3, name: 'Validate NMOS Connections', category: 'compliance', target: 'NMOS Registry Core', state: 'complete', lastRun: 'Today 11:06' },
-      { id: 4, name: 'Show Start Macro', category: 'show-control', target: 'GV Router Bridge', state: 'idle', lastRun: 'Yesterday 18:32' },
+      { id: 4, name: 'Show Start Macro', category: 'show-control', target: 'Nexus Router Bridge', state: 'idle', lastRun: 'Yesterday 18:32' },
     ],
     equipment: [
       { id: 1, name: 'JHB Core Router', vendor: 'Nexus', model: 'NXR-128', role: 'Video Router', facility: 'Johannesburg HQ', status: 'online', protocols: ['ST 2110', 'NMOS IS-05', 'GPIO'], cpuLoad: 39, temperature: 46, latencyMs: 2, lastSeen: seen },
       { id: 2, name: 'Cape Town Multiview', vendor: 'Nexus', model: 'MV-16', role: 'Multiviewer', facility: 'Cape Town Production', status: 'online', protocols: ['ST 2110', 'WebRTC'], cpuLoad: 54, temperature: 51, latencyMs: 7, lastSeen: seen },
-      { id: 3, name: 'Neuron Bridge 01', vendor: 'EVS', model: 'Neuron', role: 'Gateway', facility: 'Nairobi Edge', status: 'degraded', protocols: ['ST 2022-7', 'SRT', 'NMOS IS-04'], cpuLoad: 71, temperature: 63, latencyMs: 16, lastSeen: seen },
-      { id: 4, name: 'Legacy GPIO Rack', vendor: 'Grass Valley', model: 'Encore GPIO', role: 'Legacy Interface', facility: 'Johannesburg HQ', status: 'online', protocols: ['GPI', 'GPO', 'RS-422'], cpuLoad: 18, temperature: 33, latencyMs: 3, lastSeen: seen },
-      { id: 5, name: 'AMPP Burst Pod', vendor: 'GV', model: 'AMPP Edge', role: 'Cloud Production Pod', facility: 'AWS eu-west-2', status: 'online', protocols: ['ST 2110-22', 'NMOS IS-04', 'HTTPS'], cpuLoad: 58, temperature: 42, latencyMs: 23, lastSeen: seen },
+      { id: 3, name: 'Nexus Gateway 01', vendor: 'Nexus', model: 'Nexus Gateway', role: 'Gateway', facility: 'Nairobi Edge', status: 'degraded', protocols: ['ST 2022-7', 'SRT', 'NMOS IS-04'], cpuLoad: 71, temperature: 63, latencyMs: 16, lastSeen: seen },
+      { id: 4, name: 'Legacy GPIO Rack', vendor: 'Nexus', model: 'Nexus GPIO', role: 'Legacy Interface', facility: 'Johannesburg HQ', status: 'online', protocols: ['GPI', 'GPO', 'RS-422'], cpuLoad: 18, temperature: 33, latencyMs: 3, lastSeen: seen },
+      { id: 5, name: 'Nexus Burst Pod', vendor: 'Nexus', model: 'Nexus Edge', role: 'Cloud Production Pod', facility: 'AWS eu-west-2', status: 'online', protocols: ['ST 2110-22', 'NMOS IS-04', 'HTTPS'], cpuLoad: 58, temperature: 42, latencyMs: 23, lastSeen: seen },
     ],
     nmosNodes: [
       { id: 1, label: 'Studio 1 Program Sender', nodeId: 'node-jhb-program', kind: 'sender', transport: 'urn:x-nmos:transport:rtp', subscription: 'Program / Cloud Switcher', status: 'registered' },
@@ -159,7 +217,7 @@ function seedState(): PersistedState {
       { id: 3, name: 'Studio Backup Pod', siteId: 103, host: 'on-prem', mode: 'maintenance', operatorCount: 2, mcrChainId: 3 },
     ],
     mcrChains: [
-      { id: 1, name: 'Primary Cloud MCR', playout: 'GV AMPP Playout', ingest: 'Neuron Gateway A', compliance: 'Loudness + SCTE', distribution: 'OTT + Satellite', status: 'on-air', activeStudioId: 1 },
+      { id: 1, name: 'Primary Cloud MCR', playout: 'Nexus Cloud Playout', ingest: 'Nexus Gateway A', compliance: 'Loudness + SCTE', distribution: 'OTT + Satellite', status: 'on-air', activeStudioId: 1 },
       { id: 2, name: 'Remote Event MCR', playout: 'Nexus Channel Engine', ingest: 'SRT Edge Ingest', compliance: 'Delay + QC', distribution: 'Digital + Social', status: 'ready', activeStudioId: 2 },
       { id: 3, name: 'Backup MCR', playout: 'Disaster Playout', ingest: 'Backup Fiber Ingest', compliance: 'Safe Output', distribution: 'Disaster Recovery', status: 'switching' },
     ],
@@ -172,8 +230,7 @@ function seedState(): PersistedState {
 
 function normalizeState(raw: Partial<PersistedState>): PersistedState {
   const seeded = seedState()
-
-  return {
+  const state = {
     tenants: raw.tenants ?? seeded.tenants,
     sites: raw.sites ?? seeded.sites,
     users: raw.users ?? seeded.users,
@@ -195,6 +252,9 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     runbooks: raw.runbooks ?? seeded.runbooks,
     events: raw.events ?? seeded.events,
   }
+
+  normalizeBranding(state)
+  return state
 }
 
 async function readState() {
@@ -229,7 +289,7 @@ function refreshTelemetry(state: PersistedState) {
   })
 
   state.connectors = state.connectors.map((connector, index) => {
-    const status = connector.name === 'EVS Neuron Gateway' && index % 2 === 0 ? 'degraded' : connector.status === 'offline' ? 'offline' : 'connected'
+    const status = connector.name === 'Nexus Gateway Engine' && index % 2 === 0 ? 'degraded' : connector.status === 'offline' ? 'offline' : 'connected'
     return { ...connector, status, lastSync: nowIso() }
   })
 
@@ -303,11 +363,11 @@ export async function triggerScenario(slug: string) {
 
   if (slug === 'disaster-recovery') {
     state.equipment = state.equipment.map((item) =>
-      item.name === 'Neuron Bridge 01' ? { ...item, status: 'degraded', latencyMs: Math.min(40, item.latencyMs + 7) } : item,
+      item.name === 'Nexus Gateway 01' ? { ...item, status: 'degraded', latencyMs: Math.min(40, item.latencyMs + 7) } : item,
     )
     state.sites = state.sites.map((site) => (site.id === 103 ? { ...site, health: 'critical', ptpOffsetNs: 980 } : site))
     state.routes = state.routes.map((route) =>
-      route.siteId === 103 || route.controller === 'EVS Neuron Gateway' ? { ...route, state: 'blocked' } : route,
+      route.siteId === 103 || route.controller === 'Nexus Gateway Engine' ? { ...route, state: 'blocked' } : route,
     )
     state.workflows = state.workflows.map((workflow) =>
       workflow.name === 'Failover Contribution Path' ? { ...workflow, state: 'running', lastRun: nowClock() } : workflow,
@@ -378,22 +438,22 @@ export async function runDiscovery() {
     state.connectors.unshift({
       id: Date.now() + 2,
       siteId: 102,
-      name: 'Imagine SNP Connector',
-      type: 'Router',
-      vendor: 'Imagine',
-      status: 'connected',
-      protocol: 'SNP + NMOS',
-      lastSync: nowIso(),
-    })
+        name: 'Nexus SNP Connector',
+        type: 'Router',
+        vendor: 'Nexus',
+        status: 'connected',
+        protocol: 'SNP + NMOS',
+        lastSync: nowIso(),
+      })
     state.routes.unshift({
       id: Date.now() + 3,
       source: 'Imagine Backup Feed',
       destination: 'Program Bus B',
       siteId: 102,
-      controller: 'Imagine SNP Connector',
-      transport: 'ST 2022-7',
-      state: 'standby',
-      protected: true,
+        controller: 'Nexus SNP Connector',
+        transport: 'ST 2022-7',
+        state: 'standby',
+        protected: true,
     })
   }
 
