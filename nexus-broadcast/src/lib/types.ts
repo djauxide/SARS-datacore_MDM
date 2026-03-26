@@ -238,6 +238,7 @@ export type ProductionSetupRecord = {
   studioId: number
   mcrChainId: number
   multiviewLayout: string
+  multiviewSlots: string[]
   cameraCount: number
   audioProfile: string
   graphicsProfile: string

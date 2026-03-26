@@ -382,6 +382,7 @@ function seedState(): PersistedState {
         studioId: 1,
         mcrChainId: 1,
         multiviewLayout: '4x2 match gallery',
+        multiviewSlots: ['CAM-1', 'CAM-2', 'CAM-3', 'CAM-4', 'Replay A', 'Graphics', 'Program', 'Preview'],
         cameraCount: 12,
         audioProfile: '5.1 international with commentary',
         graphicsProfile: 'Sports lower thirds and scorebug',
@@ -399,6 +400,7 @@ function seedState(): PersistedState {
         studioId: 2,
         mcrChainId: 2,
         multiviewLayout: '3x3 newsroom',
+        multiviewSlots: ['Anchor 1', 'Anchor 2', 'Remote Guest', 'Graphics', 'Program', 'Preview', 'Weather', 'Social'],
         cameraCount: 5,
         audioProfile: 'Stereo anchor and remote guest',
         graphicsProfile: 'Breaking and lower-third package',
@@ -416,6 +418,7 @@ function seedState(): PersistedState {
         studioId: 3,
         mcrChainId: 3,
         multiviewLayout: 'wide stage mosaic',
+        multiviewSlots: ['Stage Wide', 'Stage Left', 'Stage Right', 'Crowd', 'Replay', 'Program', 'Preview', 'Lighting'],
         cameraCount: 8,
         audioProfile: 'Music mix plus stems',
         graphicsProfile: 'Event branding and sponsor loop',
@@ -474,6 +477,13 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
   }
 
   normalizeBranding(state)
+  state.productions = state.productions.map((production, index) => ({
+    ...production,
+    multiviewSlots:
+      production.multiviewSlots && production.multiviewSlots.length > 0
+        ? production.multiviewSlots
+        : seeded.productions[index]?.multiviewSlots ?? ['Program', 'Preview', 'Aux 1', 'Aux 2', 'Route 1', 'Route 2', 'OB', 'MCR'],
+  }))
   return state
 }
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import type { PlatformSnapshot, ProductionSetupRecord, SessionRecord, UserRecord, UserRole } from '@/lib/types'
+import type { ControlPageRecord, PlatformSnapshot, ProductionSetupRecord, SalvoRecord, SessionRecord, UserRecord, UserRole } from '@/lib/types'
 
 type Workspace = 'operator' | 'engineer' | 'trainee' | 'admin'
 
@@ -71,6 +71,10 @@ export default function NexusEnterprisePage() {
   const [users, setUsers] = useState<UserRecord[]>([])
   const [selectedProductionId, setSelectedProductionId] = useState<number | null>(null)
   const [productionDraft, setProductionDraft] = useState<Partial<ProductionSetupRecord> | null>(null)
+  const [selectedControlPageId, setSelectedControlPageId] = useState<number | null>(null)
+  const [controlPageDraft, setControlPageDraft] = useState<ControlPageRecord | null>(null)
+  const [selectedSalvoId, setSelectedSalvoId] = useState<number | null>(null)
+  const [salvoDraft, setSalvoDraft] = useState<SalvoRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting'>('connecting')
@@ -136,6 +140,35 @@ export default function NexusEnterprisePage() {
     if (!production) return
     setProductionDraft(production)
   }, [selectedProductionId, snapshot])
+
+  useEffect(() => {
+    if (!snapshot?.controlConfig.pages.length) return
+    const adminPage = snapshot.controlConfig.pages.find((page) => page.workspace === 'admin') ?? snapshot.controlConfig.pages[0]
+    setSelectedControlPageId((current) =>
+      current && snapshot.controlConfig.pages.some((page) => page.id === current) ? current : adminPage?.id ?? null,
+    )
+  }, [snapshot])
+
+  useEffect(() => {
+    if (!snapshot || selectedControlPageId == null) return
+    const page = snapshot.controlConfig.pages.find((item) => item.id === selectedControlPageId)
+    if (page) setControlPageDraft(page)
+  }, [selectedControlPageId, snapshot])
+
+  useEffect(() => {
+    if (!snapshot?.controlConfig.salvos.length) return
+    setSelectedSalvoId((current) =>
+      current && snapshot.controlConfig.salvos.some((salvo) => salvo.id === current)
+        ? current
+        : snapshot.controlConfig.salvos[0]?.id ?? null,
+    )
+  }, [snapshot])
+
+  useEffect(() => {
+    if (!snapshot || selectedSalvoId == null) return
+    const salvo = snapshot.controlConfig.salvos.find((item) => item.id === selectedSalvoId)
+    if (salvo) setSalvoDraft(salvo)
+  }, [selectedSalvoId, snapshot])
 
   const filteredUsers = useMemo(() => {
     if (!session) return users
@@ -417,6 +450,15 @@ export default function NexusEnterprisePage() {
     setProductionDraft((current) => (current ? { ...current, [key]: value } : current))
   }
 
+  const updateMultiviewSlot = (index: number, value: string) => {
+    setProductionDraft((current) => {
+      if (!current) return current
+      const slots = [...(current.multiviewSlots ?? Array.from({ length: 8 }, (_, slotIndex) => `Slot ${slotIndex + 1}`))]
+      slots[index] = value
+      return { ...current, multiviewSlots: slots }
+    })
+  }
+
   const saveProductionDraft = async () => {
     if (!productionDraft) return
     setBusyAction('production-save-draft')
@@ -432,6 +474,7 @@ export default function NexusEnterprisePage() {
         studioId: productionDraft.studioId,
         mcrChainId: productionDraft.mcrChainId,
         multiviewLayout: productionDraft.multiviewLayout,
+        multiviewSlots: productionDraft.multiviewSlots,
         cameraCount: productionDraft.cameraCount,
         audioProfile: productionDraft.audioProfile,
         graphicsProfile: productionDraft.graphicsProfile,
@@ -476,10 +519,9 @@ export default function NexusEnterprisePage() {
   }
 
   const saveControlPageConfig = async (pageId: number) => {
-    if (!snapshot) return
-    const page = snapshot.controlConfig.pages.find((item) => item.id === pageId)
+    const page = controlPageDraft
     if (!page) return
-    setBusyAction(`control-page-save-${pageId}`)
+    setBusyAction(`control-page-save-${page.id}`)
     await requestJson('/api/control-config', {
       method: 'POST',
       body: JSON.stringify({ action: 'save-page', page }),
@@ -488,14 +530,13 @@ export default function NexusEnterprisePage() {
     setBusyAction(null)
   }
 
-  const saveControlSalvoConfig = async (salvoId: number, routeIds: number[]) => {
-    if (!snapshot) return
-    const salvo = snapshot.controlConfig.salvos.find((item) => item.id === salvoId)
+  const saveControlSalvoConfig = async (nextSalvo?: SalvoRecord) => {
+    const salvo = nextSalvo ?? salvoDraft
     if (!salvo) return
-    setBusyAction(`salvo-save-${salvoId}`)
+    setBusyAction(`salvo-save-${salvo.id}`)
     await requestJson('/api/control-config', {
       method: 'POST',
-      body: JSON.stringify({ action: 'save-salvo', salvo: { ...salvo, routeIds } }),
+      body: JSON.stringify({ action: 'save-salvo', salvo }),
     })
     await loadSnapshot()
     setBusyAction(null)
@@ -509,6 +550,28 @@ export default function NexusEnterprisePage() {
     })
     await loadSnapshot()
     setBusyAction(null)
+  }
+
+  const updateControlPageDraft = (panelId: number) => {
+    setControlPageDraft((current) => {
+      if (!current) return current
+      const included = current.panelIds.includes(panelId)
+      return {
+        ...current,
+        panelIds: included ? current.panelIds.filter((id) => id !== panelId) : [...current.panelIds, panelId],
+      }
+    })
+  }
+
+  const updateSalvoDraft = (key: 'routeIds' | 'connectorIds' | 'gpioPortIds' | 'tallyIds', value: number) => {
+    setSalvoDraft((current) => {
+      if (!current) return current
+      const list = current[key]
+      return {
+        ...current,
+        [key]: list.includes(value) ? list.filter((id) => id !== value) : [...list, value],
+      }
+    })
   }
 
   const runOrchestrateWorkflow = async (workflowId: number) => {
@@ -1908,6 +1971,26 @@ export default function NexusEnterprisePage() {
 
                     <article className="manufacturerCard">
                       <div className="trainingCardHeader">
+                        <span className="badge standby">mosaic</span>
+                        <small>multiview slot design</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {(productionDraft.multiviewSlots ?? Array.from({ length: 8 }, (_, index) => `Slot ${index + 1}`)).map((slot, index) => (
+                          <label key={`${selectedProduction?.id}-${index}`} className="trainingText">
+                            Slot {index + 1}
+                            <input
+                              className="inp"
+                              type="text"
+                              value={slot}
+                              onChange={(event) => updateMultiviewSlot(index, event.target.value)}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
                         <span className="badge standby">devices</span>
                         <small>cross-vendor bindings</small>
                       </div>
@@ -2029,7 +2112,7 @@ export default function NexusEnterprisePage() {
                             <button
                               type="button"
                               className="tinyButton"
-                              onClick={() => void saveControlSalvoConfig(salvo.id, salvo.routeIds)}
+                              onClick={() => void saveControlSalvoConfig(salvo)}
                               disabled={busyAction === `salvo-save-${salvo.id}`}
                             >
                               {busyAction === `salvo-save-${salvo.id}` ? '...' : 'SAVE'}
@@ -2074,6 +2157,205 @@ export default function NexusEnterprisePage() {
                     </div>
                   </article>
                 </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Control page designer</p>
+                    <h2>Compose workspace panels per role and page</h2>
+                  </div>
+                </div>
+                {controlPageDraft ? (
+                  <div className="manufacturerGrid">
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">page</span>
+                        <small>{controlPageDraft.workspace}</small>
+                      </div>
+                      <div className="trainingMeta">
+                        <label className="trainingText">
+                          Choose page
+                          <select
+                            className="sel"
+                            value={selectedControlPageId ?? ''}
+                            onChange={(event) => setSelectedControlPageId(Number(event.target.value))}
+                          >
+                            {snapshot.controlConfig.pages.map((page) => (
+                              <option key={page.id} value={page.id}>
+                                {page.workspace} • {page.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <div className="buttonRow">
+                          <button
+                            type="button"
+                            className="ghostButton activeToggle"
+                            onClick={() => void saveControlPageConfig(controlPageDraft.id)}
+                            disabled={busyAction === `control-page-save-${controlPageDraft.id}`}
+                          >
+                            {busyAction === `control-page-save-${controlPageDraft.id}` ? 'Saving...' : 'Save page'}
+                          </button>
+                          <button
+                            type="button"
+                            className="ghostButton"
+                            onClick={() => void activateControlPage(controlPageDraft.id)}
+                            disabled={busyAction === `control-page-${controlPageDraft.id}`}
+                          >
+                            {busyAction === `control-page-${controlPageDraft.id}` ? 'Activating...' : 'Activate page'}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">panels</span>
+                        <small>included modules</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {snapshot.controlConfig.panels
+                          .filter((panel) => panel.workspace === controlPageDraft.workspace)
+                          .map((panel) => (
+                            <button
+                              key={panel.id}
+                              type="button"
+                              className={controlPageDraft.panelIds.includes(panel.id) ? 'ghostButton activeToggle' : 'ghostButton'}
+                              onClick={() => updateControlPageDraft(panel.id)}
+                            >
+                              {panel.title} • {panel.zone}
+                            </button>
+                          ))}
+                      </div>
+                    </article>
+                  </div>
+                ) : (
+                  <p className="trainingText">Select a control page to design.</p>
+                )}
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Salvo designer</p>
+                    <h2>Author route, connector, GPIO, and tally actions</h2>
+                  </div>
+                </div>
+                {salvoDraft ? (
+                  <div className="manufacturerGrid">
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">salvo</span>
+                        <small>{salvoDraft.mode}</small>
+                      </div>
+                      <div className="trainingMeta">
+                        <label className="trainingText">
+                          Choose salvo
+                          <select
+                            className="sel"
+                            value={selectedSalvoId ?? ''}
+                            onChange={(event) => setSelectedSalvoId(Number(event.target.value))}
+                          >
+                            {snapshot.controlConfig.salvos.map((salvo) => (
+                              <option key={salvo.id} value={salvo.id}>
+                                {salvo.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <p className="trainingText">{salvoDraft.description}</p>
+                        <div className="buttonRow">
+                          <button
+                            type="button"
+                            className="ghostButton activeToggle"
+                            onClick={() => void saveControlSalvoConfig()}
+                            disabled={busyAction === `salvo-save-${salvoDraft.id}`}
+                          >
+                            {busyAction === `salvo-save-${salvoDraft.id}` ? 'Saving...' : 'Save salvo'}
+                          </button>
+                          <button
+                            type="button"
+                            className="ghostButton"
+                            onClick={() => void runSalvo(salvoDraft.id)}
+                            disabled={busyAction === `salvo-${salvoDraft.id}`}
+                          >
+                            {busyAction === `salvo-${salvoDraft.id}` ? 'Running...' : 'Run salvo'}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">routes</span>
+                        <small>path actions</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {snapshot.routes.map((route) => (
+                          <button
+                            key={route.id}
+                            type="button"
+                            className={salvoDraft.routeIds.includes(route.id) ? 'ghostButton activeToggle' : 'ghostButton'}
+                            onClick={() => updateSalvoDraft('routeIds', route.id)}
+                          >
+                            {route.source} {'->'} {route.destination}
+                          </button>
+                        ))}
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">connectors</span>
+                        <small>device actions</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {snapshot.connectors.map((connector) => (
+                          <button
+                            key={connector.id}
+                            type="button"
+                            className={salvoDraft.connectorIds.includes(connector.id) ? 'ghostButton activeToggle' : 'ghostButton'}
+                            onClick={() => updateSalvoDraft('connectorIds', connector.id)}
+                          >
+                            {connector.name}
+                          </button>
+                        ))}
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">GPIO / tally</span>
+                        <small>legacy and UMD actions</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {snapshot.gpioPorts.map((port) => (
+                          <button
+                            key={port.id}
+                            type="button"
+                            className={salvoDraft.gpioPortIds.includes(port.id) ? 'ghostButton activeToggle' : 'ghostButton'}
+                            onClick={() => updateSalvoDraft('gpioPortIds', port.id)}
+                          >
+                            {port.port} • {port.label}
+                          </button>
+                        ))}
+                        {snapshot.controlConfig.tallies.map((tally) => (
+                          <button
+                            key={tally.id}
+                            type="button"
+                            className={salvoDraft.tallyIds.includes(tally.id) ? 'ghostButton activeToggle' : 'ghostButton'}
+                            onClick={() => updateSalvoDraft('tallyIds', tally.id)}
+                          >
+                            {tally.label}
+                          </button>
+                        ))}
+                      </div>
+                    </article>
+                  </div>
+                ) : (
+                  <p className="trainingText">Select a salvo to design.</p>
+                )}
               </article>
 
               <article className="panel">
