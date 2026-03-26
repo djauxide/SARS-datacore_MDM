@@ -6,6 +6,20 @@ import type { PlatformSnapshot, SessionRecord, UserRecord, UserRole } from '@/li
 
 type Workspace = 'operator' | 'engineer' | 'trainee' | 'admin'
 
+const manufacturerCatalog = [
+  { name: 'Ross Video', focus: 'switchers, routing control, graphics', modules: ['Production switcher', 'Routing control', 'Graphics engine'] },
+  { name: 'Grass Valley', focus: 'routing, multiview, live production', modules: ['Hybrid router', 'Multiview frame', 'Production gateway'] },
+  { name: 'EVS', focus: 'replay, media processing, orchestration', modules: ['Replay channel', 'Media gateway', 'Control core'] },
+  { name: 'Sony', focus: 'IP Live switchers, cameras, control', modules: ['IP switcher', 'Camera chain', 'Studio control'] },
+  { name: 'Blackmagic Design', focus: 'ATEM switching, conversion, I/O', modules: ['ATEM panel', 'Conversion rack', 'HyperDeck ingest'] },
+  { name: 'Riedel', focus: 'intercom, signal distribution, control', modules: ['Intercom matrix', 'Smart panel', 'MediorNet fabric'] },
+  { name: 'TSL', focus: 'tally, control, monitoring', modules: ['Tally manager', 'Control panels', 'Workflow monitor'] },
+  { name: 'Evertz', focus: 'routing, multiview, signal processing', modules: ['Core router', 'Multiview node', 'Edge processing'] },
+  { name: 'Lawo', focus: 'IP management, audio, control', modules: ['HOME domain', 'Audio console', 'Processing node'] },
+  { name: 'Imagine Communications', focus: 'SNP routing, playout, timing', modules: ['SNP router', 'Playout chain', 'Timing bridge'] },
+  { name: 'AJA', focus: 'conversion, bridge, ingest/egress', modules: ['Signal bridge', 'Mini-converters', 'I/O gateway'] },
+] as const
+
 const workspaceCopy: Record<Workspace, { label: string; title: string; summary: string }> = {
   operator: {
     label: 'Operator',
@@ -112,6 +126,46 @@ export default function NexusEnterprisePage() {
   }, [session, users])
 
   const activeSite = useMemo(() => snapshot?.sites.find((site) => site.id === session?.siteId) ?? snapshot?.sites[0], [session, snapshot])
+  const activeRoute = useMemo(() => snapshot?.routes.find((route) => route.state === 'active') ?? null, [snapshot])
+  const standbyRoute = useMemo(() => snapshot?.routes.find((route) => route.state === 'standby') ?? null, [snapshot])
+  const liveStudio = useMemo(() => snapshot?.virtualStudios.find((studio) => studio.mode === 'live') ?? null, [snapshot])
+  const activeMcr = useMemo(() => snapshot?.mcrChains.find((chain) => chain.status === 'on-air') ?? null, [snapshot])
+  const productionClock = useMemo(() => {
+    if (!snapshot?.generatedAt) return '--:--:--'
+    return new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(new Date(snapshot.generatedAt))
+  }, [snapshot])
+  const multiviewTiles = useMemo(() => {
+    if (!snapshot) return []
+
+    return [
+      ...snapshot.routes.map((route) => ({
+        id: `route-${route.id}`,
+        label: route.source,
+        detail: route.destination,
+        status: route.state,
+        meta: route.transport,
+      })),
+      ...snapshot.obUnits.map((unit) => ({
+        id: `ob-${unit.id}`,
+        label: unit.name,
+        detail: unit.venue,
+        status: unit.status,
+        meta: unit.contribution,
+      })),
+      ...snapshot.virtualStudios.map((studio) => ({
+        id: `studio-${studio.id}`,
+        label: studio.name,
+        detail: `${studio.host} control`,
+        status: studio.mode,
+        meta: `${studio.operatorCount} ops`,
+      })),
+    ].slice(0, 9)
+  }, [snapshot])
 
   const runScenario = async (slug: string) => {
     setBusyAction(`scenario-${slug}`)
@@ -311,6 +365,172 @@ export default function NexusEnterprisePage() {
 
           {workspace === 'operator' && snapshot ? (
             <>
+              <article className="panel productionSurface">
+                <div className="productionTopbar">
+                  <div>
+                    <p className="panelLabel">Production control room</p>
+                    <h2>Nexus Orchestrate multiview and switcher surface</h2>
+                  </div>
+                  <div className="clockCluster">
+                    <div className="clockCard">
+                      <span>Clock</span>
+                      <strong>{productionClock}</strong>
+                    </div>
+                    <div className="clockCard">
+                      <span>Program</span>
+                      <strong>{activeRoute?.source ?? 'Awaiting bus'}</strong>
+                    </div>
+                    <div className="clockCard">
+                      <span>Preview</span>
+                      <strong>{standbyRoute?.source ?? 'Awaiting source'}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="productionGrid">
+                  <section className="multiviewWall">
+                    <div className="sectionMiniHeader">
+                      <span>Multiview</span>
+                      <small>{multiviewTiles.length} live windows</small>
+                    </div>
+                    <div className="multiviewGrid">
+                      {multiviewTiles.map((tile) => (
+                        <article key={tile.id} className={`multiviewTile ${tile.status === 'active' || tile.status === 'live' || tile.status === 'on-air' ? 'program' : tile.status === 'standby' || tile.status === 'ready' ? 'preview' : 'alert'}`}>
+                          <div className="multiviewFrame">
+                            <span className="multiviewTally">{tile.status}</span>
+                            <strong>{tile.label}</strong>
+                            <small>{tile.detail}</small>
+                          </div>
+                          <div className="multiviewFooter">
+                            <span>{tile.meta}</span>
+                            <span>{tile.id}</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="switcherDeck">
+                    <div className="sectionMiniHeader">
+                      <span>Switcher deck</span>
+                      <small>Take, route, and scenario control</small>
+                    </div>
+                    <div className="switcherBus">
+                      <div className="busRow">
+                        <span className="busLabel">Program</span>
+                        <div className="busSources">
+                          {snapshot.routes.map((route) => (
+                            <button
+                              key={`program-${route.id}`}
+                              type="button"
+                              className={route.state === 'active' ? 'sourceButton live' : 'sourceButton'}
+                              onClick={() => void toggleRoute(route.id)}
+                              disabled={busyAction === `route-${route.id}` || route.state === 'blocked'}
+                            >
+                              {route.source}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="busRow">
+                        <span className="busLabel preview">Preview</span>
+                        <div className="busSources">
+                          {snapshot.routes.map((route) => (
+                            <button
+                              key={`preview-${route.id}`}
+                              type="button"
+                              className={route.state === 'standby' ? 'sourceButton preview' : 'sourceButton muted'}
+                              onClick={() => void toggleRoute(route.id)}
+                              disabled={busyAction === `route-${route.id}` || route.state === 'blocked'}
+                            >
+                              {route.destination}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="takeBar">
+                      <button
+                        type="button"
+                        className="ghostButton activeToggle"
+                        onClick={() => activeRoute && void toggleRoute(activeRoute.id)}
+                        disabled={!activeRoute || busyAction === `route-${activeRoute?.id}`}
+                      >
+                        Take cut
+                      </button>
+                      <button
+                        type="button"
+                        className="ghostButton"
+                        onClick={() => standbyRoute && void toggleRoute(standbyRoute.id)}
+                        disabled={!standbyRoute || busyAction === `route-${standbyRoute?.id}`}
+                      >
+                        Take auto
+                      </button>
+                      <button
+                        type="button"
+                        className="ghostButton"
+                        onClick={() => void runScenario('breaking-news')}
+                        disabled={busyAction === 'scenario-breaking-news'}
+                      >
+                        Breaking mode
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="consoleStack">
+                    <article className="consolePanel">
+                      <div className="sectionMiniHeader">
+                        <span>Virtual console</span>
+                        <small>{liveStudio?.name ?? 'No live studio'}</small>
+                      </div>
+                      <div className="consoleRows">
+                        <div className="consoleRow">
+                          <span>Director</span>
+                          <strong>{activeRoute?.destination ?? 'Program bus pending'}</strong>
+                        </div>
+                        <div className="consoleRow">
+                          <span>Audio</span>
+                          <strong>{snapshot.connectors.find((connector) => connector.type === 'Audio')?.name ?? 'Audio core offline'}</strong>
+                        </div>
+                        <div className="consoleRow">
+                          <span>Intercom</span>
+                          <strong>Virtual keypanel linked</strong>
+                        </div>
+                        <div className="consoleRow">
+                          <span>Replay</span>
+                          <strong>{snapshot.connectors.find((connector) => connector.type === 'Replay')?.name ?? 'Replay offline'}</strong>
+                        </div>
+                      </div>
+                    </article>
+
+                    <article className="consolePanel">
+                      <div className="sectionMiniHeader">
+                        <span>Master control</span>
+                        <small>{activeMcr?.name ?? 'Standby chain'}</small>
+                      </div>
+                      <div className="consoleRows">
+                        <div className="consoleRow">
+                          <span>Playout</span>
+                          <strong>{activeMcr?.playout ?? 'No playout chain'}</strong>
+                        </div>
+                        <div className="consoleRow">
+                          <span>Ingest</span>
+                          <strong>{activeMcr?.ingest ?? 'No ingest path'}</strong>
+                        </div>
+                        <div className="consoleRow">
+                          <span>Compliance</span>
+                          <strong>{activeMcr?.compliance ?? 'Pending compliance'}</strong>
+                        </div>
+                        <div className="consoleRow">
+                          <span>Distribution</span>
+                          <strong>{activeMcr?.distribution ?? 'Distribution idle'}</strong>
+                        </div>
+                      </div>
+                    </article>
+                  </section>
+                </div>
+              </article>
+
               <article className="panel">
                 <div className="panelHeader">
                   <div>
@@ -642,6 +862,31 @@ export default function NexusEnterprisePage() {
                       <p>{flow.nodeId}</p>
                       <div className="trainingMeta">
                         <small>{flow.format}</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Manufacturer ecosystem</p>
+                    <h2>Supported broadcast equipment families</h2>
+                  </div>
+                </div>
+                <div className="manufacturerGrid">
+                  {manufacturerCatalog.map((maker) => (
+                    <article key={maker.name} className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">catalog</span>
+                        <small>{maker.focus}</small>
+                      </div>
+                      <h3>{maker.name}</h3>
+                      <div className="trainingMeta">
+                        {maker.modules.map((module) => (
+                          <small key={module}>{module}</small>
+                        ))}
                       </div>
                     </article>
                   ))}
