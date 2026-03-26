@@ -1068,8 +1068,362 @@ button {
   gap: 14px;
 }
 
+.patchMatrix {
+  display: grid;
+  gap: 10px;
+}
+
+.patchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.patchRow strong {
+  display: block;
+}
+
+.patchRow small {
+  color: var(--muted);
+}
+
+.patchArrow {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .manufacturerCard h3 {
   margin: 0;
+}
+
+.fastShell {
+  width: min(1420px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+.fastHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 180, 74, 0.18), transparent 30%),
+    linear-gradient(135deg, rgba(17, 28, 50, 0.94), rgba(7, 17, 31, 0.92));
+  box-shadow: var(--shadow);
+}
+
+.fastHeroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.fastHeroRail,
+.fastKpiGrid,
+.fastWorkspace,
+.fastMainColumn,
+.fastSideColumn,
+.fastChannelGrid,
+.fastChannelMeta,
+.fastDetailGrid,
+.fastTimeline,
+.fastDistributionList,
+.fastDistributionMeta {
+  display: grid;
+  gap: 14px;
+}
+
+.fastHeroRail {
+  align-content: start;
+}
+
+.fastMetricTile,
+.fastDetailCard,
+.fastChannelCard,
+.fastTimelineRow,
+.fastDistributionCard {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.fastMetricTile {
+  padding: 18px;
+}
+
+.fastMetricTile small,
+.fastDetailCard p,
+.fastChannelCard p,
+.fastChannelMeta small,
+.fastTimelineRow small,
+.fastDistributionCard p,
+.fastDistributionCard small,
+.fastDistributionMeta span {
+  color: var(--muted);
+}
+
+.fastMetricTile strong {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 1.8rem;
+  text-transform: uppercase;
+}
+
+.fastKpiGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 20px;
+}
+
+.fastWorkspace {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.82fr);
+  margin-top: 20px;
+  align-items: start;
+}
+
+.fastChannelGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fastChannelCard {
+  padding: 18px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.fastChannelCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 180, 74, 0.32);
+  background: rgba(255, 180, 74, 0.08);
+}
+
+.fastChannelCard.selected {
+  border-color: rgba(255, 180, 74, 0.38);
+  background: linear-gradient(180deg, rgba(255, 180, 74, 0.12), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 0 0 1px rgba(255, 180, 74, 0.16);
+}
+
+.fastChannelCard h3,
+.fastDistributionCard strong,
+.fastDetailCard strong,
+.fastTimelineRow p {
+  margin: 0;
+}
+
+.fastChannelMeta,
+.fastDistributionMeta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.fastDetailGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fastDetailCard {
+  padding: 18px;
+}
+
+.fastDetailCard strong {
+  display: block;
+  margin: 10px 0 8px;
+  font-size: 1.1rem;
+}
+
+.fastTimelineRow,
+.fastDistributionCard {
+  padding: 16px;
+}
+
+.fastTimelineRow {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.fastTimelineRow strong {
+  font-size: 1.1rem;
+}
+
+.fastDistributionMeta span {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.72rem;
+}
+
+.ctvShell {
+  width: min(1420px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+.ctvHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.8fr);
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 180, 74, 0.2), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(74, 210, 255, 0.14), transparent 28%),
+    linear-gradient(135deg, rgba(28, 24, 43, 0.96), rgba(7, 17, 31, 0.92));
+  box-shadow: var(--shadow);
+}
+
+.ctvHeroActions,
+.ctvHeroRail,
+.ctvKpiGrid,
+.ctvWorkspace,
+.ctvMainColumn,
+.ctvSideColumn,
+.ctvChannelGrid,
+.ctvMetaRow,
+.ctvDetailGrid,
+.ctvTimeline,
+.ctvLedgerGrid,
+.ctvStackList,
+.ctvDistributionList,
+.ctvConnectorRow {
+  display: grid;
+  gap: 14px;
+}
+
+.ctvHeroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ctvSignalCard,
+.ctvChannelCard,
+.ctvDetailCard,
+.ctvTimelineRow,
+.ctvLedgerCard,
+.ctvStackCard,
+.ctvDistributionCard {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ctvSignalCard,
+.ctvDetailCard,
+.ctvTimelineRow,
+.ctvLedgerCard,
+.ctvStackCard,
+.ctvDistributionCard {
+  padding: 18px;
+}
+
+.ctvSignalCard small,
+.ctvSignalCard span,
+.ctvChannelCard p,
+.ctvMetaRow small,
+.ctvDetailCard p,
+.ctvTimelineRow small,
+.ctvLedgerCard p,
+.ctvStackCard p,
+.ctvDistributionCard p {
+  color: var(--muted);
+}
+
+.ctvSignalCard strong {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 1.8rem;
+  text-transform: uppercase;
+}
+
+.ctvKpiGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 20px;
+}
+
+.ctvWorkspace {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.84fr);
+  margin-top: 20px;
+  align-items: start;
+}
+
+.ctvChannelGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ctvChannelCard {
+  padding: 18px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.ctvChannelCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 180, 74, 0.34);
+  background: rgba(255, 180, 74, 0.08);
+}
+
+.ctvChannelCard.selected {
+  border-color: rgba(255, 180, 74, 0.42);
+  background: linear-gradient(180deg, rgba(255, 180, 74, 0.12), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 0 0 1px rgba(255, 180, 74, 0.18);
+}
+
+.ctvChannelCard h3,
+.ctvDetailCard strong,
+.ctvLedgerCard strong,
+.ctvStackCard strong,
+.ctvDistributionCard strong,
+.ctvTimelineRow p {
+  margin: 0;
+}
+
+.ctvMetaRow {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.ctvDetailGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ctvDetailCard strong {
+  display: block;
+  margin: 10px 0 8px;
+  font-size: 1.1rem;
+}
+
+.ctvTimelineRow {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.ctvLedgerGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 @media (max-width: 1120px) {
@@ -1089,7 +1443,19 @@ button {
   .canvasLower,
   .signalFlowMap,
   .manufacturerGrid,
-  .multiviewGrid {
+  .multiviewGrid,
+  .patchRow,
+  .fastHero,
+  .fastKpiGrid,
+  .fastWorkspace,
+  .fastChannelGrid,
+  .fastDetailGrid,
+  .ctvHero,
+  .ctvKpiGrid,
+  .ctvWorkspace,
+  .ctvChannelGrid,
+  .ctvDetailGrid,
+  .ctvLedgerGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1112,9 +1478,21 @@ button {
     padding-top: 20px;
   }
 
+  .fastShell {
+    width: min(100% - 20px, 1420px);
+    padding-top: 20px;
+  }
+
+  .ctvShell {
+    width: min(100% - 20px, 1420px);
+    padding-top: 20px;
+  }
+
   .hero,
   .panel,
-  .kpiCard {
+  .kpiCard,
+  .fastHero,
+  .ctvHero {
     border-radius: 18px;
   }
 
@@ -1130,7 +1508,9 @@ button {
   .eventRow,
   .busRow,
   .consoleRow,
-  .railRow {
+  .railRow,
+  .fastTimelineRow,
+  .ctvTimelineRow {
     flex-direction: column;
   }
 
@@ -1145,5 +1525,21 @@ button {
 
   .buttonRow .ghostButton {
     width: 100%;
+  }
+
+  .fastChannelMeta,
+  .fastDistributionMeta,
+  .ctvMetaRow {
+    grid-template-columns: 1fr;
+  }
+
+  .fastTimelineRow {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .ctvTimelineRow {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
   }
 }
