@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ session: existing })
   }
 
-  const defaultUser = getUsers()[0]
+  const defaultUser = (await getUsers())[0]
   const session = {
     name: defaultUser.name,
     email: defaultUser.email,

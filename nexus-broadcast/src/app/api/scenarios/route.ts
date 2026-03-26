@@ -10,6 +10,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Scenario slug is required.' }, { status: 400 })
   }
 
-  triggerScenario(body.slug)
+  await triggerScenario(body.slug)
   return NextResponse.json({ ok: true })
 }

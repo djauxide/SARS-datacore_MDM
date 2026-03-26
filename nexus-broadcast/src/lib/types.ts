@@ -70,6 +70,8 @@ export type ConnectorRecord = {
   status: 'connected' | 'degraded' | 'offline'
   protocol: string
   lastSync: string
+  endpoint?: string
+  capabilities?: string[]
 }
 
 export type RouteRecord = {
@@ -90,6 +92,18 @@ export type WorkflowRecord = {
   target: string
   state: 'idle' | 'running' | 'complete'
   lastRun: string
+}
+
+export type JobRecord = {
+  id: number
+  connectorId: number
+  connectorName: string
+  action: string
+  payload: Record<string, unknown>
+  state: 'queued' | 'running' | 'complete' | 'failed'
+  result?: string
+  createdAt: string
+  completedAt?: string
 }
 
 export type GpioRecord = {
@@ -141,6 +155,7 @@ export type PlatformSnapshot = {
   connectors: ConnectorRecord[]
   routes: RouteRecord[]
   workflows: WorkflowRecord[]
+  jobs: JobRecord[]
   metrics: {
     onAirServices: number
     activeIncidents: number
@@ -149,6 +164,7 @@ export type PlatformSnapshot = {
     gpioActive: number
     connectedSites: number
     connectedConnectors: number
+    queuedJobs: number
   }
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]

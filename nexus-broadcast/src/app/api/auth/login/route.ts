@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as { userId?: number }
-  const user = getUsers().find((candidate) => candidate.id === body.userId)
+  const user = (await getUsers()).find((candidate) => candidate.id === body.userId)
 
   if (!user) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 })

@@ -5,7 +5,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  return NextResponse.json({ workflows: getPlatformSnapshot().workflows })
+  return NextResponse.json({ workflows: (await getPlatformSnapshot()).workflows })
 }
 
 export async function POST(request: NextRequest) {
@@ -14,6 +14,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Workflow id is required.' }, { status: 400 })
   }
 
-  runWorkflow(body.id)
+  await runWorkflow(body.id)
   return NextResponse.json({ ok: true })
 }

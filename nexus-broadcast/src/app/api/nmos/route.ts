@@ -5,7 +5,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const snapshot = getPlatformSnapshot()
+  const snapshot = await getPlatformSnapshot()
   return NextResponse.json({
     nodes: snapshot.nmosNodes,
     flows: snapshot.nmosFlows,

@@ -14,7 +14,9 @@ export async function GET() {
   const stream = new ReadableStream({
     start(controller) {
       const send = () => {
-        controller.enqueue(encoder.encode(encoderData('snapshot', getPlatformSnapshot())))
+        void getPlatformSnapshot().then((snapshot) => {
+          controller.enqueue(encoder.encode(encoderData('snapshot', snapshot)))
+        })
       }
 
       send()

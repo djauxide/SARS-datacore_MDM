@@ -180,6 +180,16 @@ export default function NexusEnterprisePage() {
     setBusyAction(null)
   }
 
+  const runConnectorJob = async (connectorId: number, action: 'sync' | 'switch-route' | 'run-workflow' | 'pulse-gpio') => {
+    setBusyAction(`job-${connectorId}-${action}`)
+    await requestJson('/api/jobs', {
+      method: 'POST',
+      body: JSON.stringify({ connectorId, action }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
   const loginAs = async (userId: number) => {
     setBusyAction(`login-${userId}`)
     const response = await requestJson<{ session: SessionRecord }>('/api/auth/login', {
@@ -239,6 +249,11 @@ export default function NexusEnterprisePage() {
           <span>Enterprise users</span>
           <strong>{filteredUsers.length}</strong>
           <small>{snapshot?.tenants.length ?? 0} tenants visible</small>
+        </article>
+        <article className="kpiCard">
+          <span>Queued jobs</span>
+          <strong>{snapshot?.metrics.queuedJobs ?? '--'}</strong>
+          <small>Auditable command execution</small>
         </article>
       </section>
 
@@ -464,6 +479,25 @@ export default function NexusEnterprisePage() {
                         <button type="button" className="ghostButton dangerButton" onClick={() => void changeConnectorStatus(connector.id, 'offline')}>
                           Offline
                         </button>
+                        <button
+                          type="button"
+                          className="ghostButton activeToggle"
+                          onClick={() =>
+                            void runConnectorJob(
+                              connector.id,
+                              connector.type === 'GPIO'
+                                ? 'pulse-gpio'
+                                : connector.type === 'Cloud' || connector.type === 'Replay'
+                                  ? 'run-workflow'
+                                  : connector.type === 'Router' || connector.type === 'Audio'
+                                    ? 'switch-route'
+                                    : 'sync',
+                            )
+                          }
+                          disabled={busyAction?.startsWith(`job-${connector.id}-`) === true}
+                        >
+                          Execute job
+                        </button>
                       </div>
                     </article>
                   ))}
@@ -638,6 +672,31 @@ export default function NexusEnterprisePage() {
                     <p>{event.detail}</p>
                   </div>
                 </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel compactPanel">
+            <div className="panelHeader">
+              <div>
+                <p className="panelLabel">Execution queue</p>
+                <h2>Recent jobs</h2>
+              </div>
+            </div>
+            <div className="alertList">
+              {snapshot?.jobs.slice(0, 6).map((job) => (
+                <article key={job.id} className="alertCard info">
+                  <div>
+                    <strong>{job.connectorName}</strong>
+                    <p>
+                      {job.action} • {job.result ?? 'Executing'}
+                    </p>
+                  </div>
+                  <div className="alertFooter">
+                    <span>{job.state}</span>
+                    <small>{job.createdAt}</small>
+                  </div>
+                </article>
               ))}
             </div>
           </article>

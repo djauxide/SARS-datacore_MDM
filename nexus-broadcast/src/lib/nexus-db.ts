@@ -1,11 +1,10 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import type {
   AlertRecord,
   ConnectorRecord,
   EquipmentRecord,
   EventRecord,
   GpioRecord,
+  JobRecord,
   NmosFlowRecord,
   NmosNodeRecord,
   PlatformSnapshot,
@@ -17,6 +16,8 @@ import type {
   UserRecord,
   WorkflowRecord,
 } from './types'
+import { executeConnectorAction, type AdapterAction } from './adapters'
+import { createStore } from './store'
 
 type PersistedState = {
   tenants: TenantRecord[]
@@ -25,6 +26,7 @@ type PersistedState = {
   connectors: ConnectorRecord[]
   routes: RouteRecord[]
   workflows: WorkflowRecord[]
+  jobs: JobRecord[]
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]
   nmosFlows: NmosFlowRecord[]
@@ -34,9 +36,6 @@ type PersistedState = {
   runbooks: RunbookRecord[]
   events: EventRecord[]
 }
-
-const dataDir = path.join(process.cwd(), 'data')
-const dbPath = path.join(dataDir, 'platform-runtime.json')
 
 function nowIso() {
   return new Date().toISOString()
@@ -128,20 +127,11 @@ function seedState(): PersistedState {
       { id: 2, name: 'Cloud Gallery Spin-up', purpose: 'Create extra operator and replay capacity.', eta: '90 sec', state: 'idle' },
       { id: 3, name: 'Legacy Tally Sync', purpose: 'Align GPIO tally and program bus status.', eta: '12 sec', state: 'complete' },
     ],
+    jobs: [],
     events: [
       { id: 1, time: nowClock(), title: 'Enterprise datastore initialized', detail: 'Nexus seeded tenants, sites, connectors, discovery, and operational state.' },
       { id: 2, time: nowClock(), title: 'NMOS registry linked', detail: 'Initial simulated device registration completed.' },
     ],
-  }
-}
-
-function ensureDataFile() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true })
-  }
-
-  if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify(seedState(), null, 2))
   }
 }
 
@@ -155,6 +145,7 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     connectors: raw.connectors ?? seeded.connectors,
     routes: raw.routes ?? seeded.routes,
     workflows: raw.workflows ?? seeded.workflows,
+    jobs: raw.jobs ?? seeded.jobs,
     equipment: raw.equipment ?? seeded.equipment,
     nmosNodes: raw.nmosNodes ?? seeded.nmosNodes,
     nmosFlows: raw.nmosFlows ?? seeded.nmosFlows,
@@ -166,13 +157,15 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
   }
 }
 
-function readState() {
-  ensureDataFile()
-  return normalizeState(JSON.parse(fs.readFileSync(dbPath, 'utf8')) as Partial<PersistedState>)
+async function readState() {
+  const store = await createStore<PersistedState>(seedState)
+  const raw = await store.read()
+  return normalizeState(raw)
 }
 
-function writeState(state: PersistedState) {
-  fs.writeFileSync(dbPath, JSON.stringify(state, null, 2))
+async function writeState(state: PersistedState) {
+  const store = await createStore<PersistedState>(seedState)
+  await store.write(state)
 }
 
 function addEvent(state: PersistedState, title: string, detail: string) {
@@ -213,10 +206,10 @@ function refreshTelemetry(state: PersistedState) {
   }))
 }
 
-export function getPlatformSnapshot(): PlatformSnapshot {
-  const state = readState()
+export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
+  const state = await readState()
   refreshTelemetry(state)
-  writeState(state)
+  await writeState(state)
 
   return {
     generatedAt: nowIso(),
@@ -235,6 +228,7 @@ export function getPlatformSnapshot(): PlatformSnapshot {
       gpioActive: state.gpioPorts.filter((item) => item.state === 1).length,
       connectedSites: state.sites.filter((item) => item.health !== 'critical').length,
       connectedConnectors: state.connectors.filter((item) => item.status === 'connected').length,
+      queuedJobs: state.jobs.filter((item) => item.state === 'queued' || item.state === 'running').length,
     },
     equipment: state.equipment,
     nmosNodes: state.nmosNodes,
@@ -243,16 +237,17 @@ export function getPlatformSnapshot(): PlatformSnapshot {
     alerts: state.alerts,
     scenarios: state.scenarios,
     runbooks: state.runbooks,
+    jobs: state.jobs,
     events: state.events,
   }
 }
 
-export function getUsers() {
-  return readState().users
+export async function getUsers() {
+  return (await readState()).users
 }
 
-export function triggerScenario(slug: string) {
-  const state = readState()
+export async function triggerScenario(slug: string) {
+  const state = await readState()
   state.scenarios = state.scenarios.map((scenario) => ({ ...scenario, status: scenario.slug === slug ? 'active' : 'ready' }))
 
   if (slug === 'disaster-recovery') {
@@ -298,11 +293,11 @@ export function triggerScenario(slug: string) {
   }
 
   addEvent(state, 'Scenario activated', `Scenario ${slug} moved into active mode.`)
-  writeState(state)
+  await writeState(state)
 }
 
-export function runDiscovery() {
-  const state = readState()
+export async function runDiscovery() {
+  const state = await readState()
   const existing = state.equipment.some((item) => item.name === 'Imagine SNP Gateway')
 
   if (!existing) {
@@ -352,31 +347,31 @@ export function runDiscovery() {
   }
 
   addEvent(state, 'Discovery completed', 'Equipment discovery scanned NMOS, router, audio, and legacy control inventory.')
-  writeState(state)
+  await writeState(state)
 }
 
-export function toggleGpio(portId: number) {
-  const state = readState()
+export async function toggleGpio(portId: number) {
+  const state = await readState()
   state.gpioPorts = state.gpioPorts.map((port) => (port.id === portId ? { ...port, state: port.state === 1 ? 0 : 1 } : port))
   const port = state.gpioPorts.find((item) => item.id === portId)
   if (port) {
     addEvent(state, 'GPIO state changed', `${port.port} (${port.label}) switched to ${port.state}.`)
   }
-  writeState(state)
+  await writeState(state)
 }
 
-export function acknowledgeAlert(alertId: number) {
-  const state = readState()
+export async function acknowledgeAlert(alertId: number) {
+  const state = await readState()
   state.alerts = state.alerts.map((alert) => (alert.id === alertId ? { ...alert, acknowledged: true } : alert))
   const alert = state.alerts.find((item) => item.id === alertId)
   if (alert) {
     addEvent(state, 'Alert acknowledged', alert.title)
   }
-  writeState(state)
+  await writeState(state)
 }
 
-export function setConnectorStatus(connectorId: number, status: ConnectorRecord['status']) {
-  const state = readState()
+export async function setConnectorStatus(connectorId: number, status: ConnectorRecord['status']) {
+  const state = await readState()
   state.connectors = state.connectors.map((connector) =>
     connector.id === connectorId ? { ...connector, status, lastSync: nowIso() } : connector,
   )
@@ -384,11 +379,11 @@ export function setConnectorStatus(connectorId: number, status: ConnectorRecord[
   if (connector) {
     addEvent(state, 'Connector state changed', `${connector.name} set to ${status}.`)
   }
-  writeState(state)
+  await writeState(state)
 }
 
-export function switchRoute(routeId: number) {
-  const state = readState()
+export async function switchRoute(routeId: number) {
+  const state = await readState()
   state.routes = state.routes.map((route) =>
     route.id === routeId
       ? { ...route, state: route.state === 'active' ? 'standby' : 'active' }
@@ -400,11 +395,11 @@ export function switchRoute(routeId: number) {
   if (route) {
     addEvent(state, 'Route switched', `${route.source} to ${route.destination} via ${route.controller} set ${route.state === 'active' ? 'standby' : 'active'}.`)
   }
-  writeState(state)
+  await writeState(state)
 }
 
-export function runWorkflow(workflowId: number) {
-  const state = readState()
+export async function runWorkflow(workflowId: number) {
+  const state = await readState()
   state.workflows = state.workflows.map((workflow) =>
     workflow.id === workflowId ? { ...workflow, state: 'running', lastRun: nowClock() } : workflow,
   )
@@ -412,5 +407,45 @@ export function runWorkflow(workflowId: number) {
   if (workflow) {
     addEvent(state, 'Workflow launched', `${workflow.name} started against ${workflow.target}.`)
   }
-  writeState(state)
+  await writeState(state)
+}
+
+export async function queueConnectorJob(connectorId: number, action: AdapterAction, payload: Record<string, unknown>) {
+  const state = await readState()
+  const connector = state.connectors.find((item) => item.id === connectorId)
+
+  if (!connector) {
+    throw new Error('Connector not found.')
+  }
+
+  const jobId = Date.now()
+  state.jobs.unshift({
+    id: jobId,
+    connectorId: connector.id,
+    connectorName: connector.name,
+    action,
+    payload,
+    state: 'running',
+    createdAt: nowIso(),
+  })
+  addEvent(state, 'Job queued', `${action} queued for ${connector.name}.`)
+  await writeState(state)
+
+  const result = await executeConnectorAction(connector, action, payload)
+  const nextState = await readState()
+  nextState.jobs = nextState.jobs.map((job) =>
+    job.id === jobId
+      ? {
+          ...job,
+          state: result.ok ? 'complete' : 'failed',
+          result: result.message,
+          completedAt: nowIso(),
+        }
+      : job,
+  )
+
+  addEvent(nextState, result.ok ? 'Job completed' : 'Job failed', result.message)
+  await writeState(nextState)
+
+  return nextState.jobs.find((job) => job.id === jobId)
 }

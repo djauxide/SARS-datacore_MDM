@@ -5,7 +5,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  return NextResponse.json({ routes: getPlatformSnapshot().routes })
+  return NextResponse.json({ routes: (await getPlatformSnapshot()).routes })
 }
 
 export async function POST(request: NextRequest) {
@@ -14,6 +14,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Route id is required.' }, { status: 400 })
   }
 
-  switchRoute(body.id)
+  await switchRoute(body.id)
   return NextResponse.json({ ok: true })
 }

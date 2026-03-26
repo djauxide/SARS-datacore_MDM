@@ -10,6 +10,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'GPIO id is required.' }, { status: 400 })
   }
 
-  toggleGpio(body.id)
+  await toggleGpio(body.id)
   return NextResponse.json({ ok: true })
 }

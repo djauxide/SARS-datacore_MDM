@@ -4,7 +4,7 @@ import { getPlatformSnapshot, setConnectorStatus } from '@/lib/nexus-db'
 export const runtime = 'nodejs'
 
 export async function GET() {
-  return NextResponse.json({ connectors: getPlatformSnapshot().connectors })
+  return NextResponse.json({ connectors: (await getPlatformSnapshot()).connectors })
 }
 
 export async function POST(request: NextRequest) {
@@ -14,6 +14,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Connector id and status are required.' }, { status: 400 })
   }
 
-  setConnectorStatus(body.id, body.status)
+  await setConnectorStatus(body.id, body.status)
   return NextResponse.json({ ok: true })
 }

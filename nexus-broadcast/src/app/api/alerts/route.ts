@@ -10,6 +10,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Alert id is required.' }, { status: 400 })
   }
 
-  acknowledgeAlert(body.id)
+  await acknowledgeAlert(body.id)
   return NextResponse.json({ ok: true })
 }
