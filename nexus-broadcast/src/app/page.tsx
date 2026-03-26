@@ -475,6 +475,42 @@ export default function NexusEnterprisePage() {
     setBusyAction(null)
   }
 
+  const saveControlPageConfig = async (pageId: number) => {
+    if (!snapshot) return
+    const page = snapshot.controlConfig.pages.find((item) => item.id === pageId)
+    if (!page) return
+    setBusyAction(`control-page-save-${pageId}`)
+    await requestJson('/api/control-config', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save-page', page }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const saveControlSalvoConfig = async (salvoId: number, routeIds: number[]) => {
+    if (!snapshot) return
+    const salvo = snapshot.controlConfig.salvos.find((item) => item.id === salvoId)
+    if (!salvo) return
+    setBusyAction(`salvo-save-${salvoId}`)
+    await requestJson('/api/control-config', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save-salvo', salvo: { ...salvo, routeIds } }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const toggleTally = async (tallyId: number, mode: 'program' | 'preview') => {
+    setBusyAction(`tally-${tallyId}-${mode}`)
+    await requestJson('/api/control-config', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'toggle-tally', tallyId, mode }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
   const runOrchestrateWorkflow = async (workflowId: number) => {
     setBusyAction(`orch-workflow-${workflowId}`)
     await requestJson('/api/orchestrate', {
@@ -1840,6 +1876,64 @@ export default function NexusEnterprisePage() {
                         </div>
                       </div>
                     </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">routes</span>
+                        <small>show path bindings</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {snapshot.routes.map((route) => {
+                          const selected = productionDraft.primaryRouteIds?.includes(route.id) ?? false
+                          return (
+                            <button
+                              key={route.id}
+                              type="button"
+                              className={selected ? 'ghostButton activeToggle' : 'ghostButton'}
+                              onClick={() =>
+                                updateProductionDraft(
+                                  'primaryRouteIds',
+                                  selected
+                                    ? (productionDraft.primaryRouteIds ?? []).filter((id) => id !== route.id)
+                                    : [...(productionDraft.primaryRouteIds ?? []), route.id],
+                                )
+                              }
+                            >
+                              {route.source} {'->'} {route.destination}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">devices</span>
+                        <small>cross-vendor bindings</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {snapshot.connectors.map((connector) => {
+                          const selected = productionDraft.connectorIds?.includes(connector.id) ?? false
+                          return (
+                            <button
+                              key={connector.id}
+                              type="button"
+                              className={selected ? 'ghostButton activeToggle' : 'ghostButton'}
+                              onClick={() =>
+                                updateProductionDraft(
+                                  'connectorIds',
+                                  selected
+                                    ? (productionDraft.connectorIds ?? []).filter((id) => id !== connector.id)
+                                    : [...(productionDraft.connectorIds ?? []), connector.id],
+                                )
+                              }
+                            >
+                              {connector.vendor} {connector.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </article>
                   </div>
                 ) : (
                   <p className="trainingText">Select a production to start authoring.</p>
@@ -1865,14 +1959,24 @@ export default function NexusEnterprisePage() {
                           <p>
                             {page.workspace} • {page.name} • {page.layout}
                           </p>
-                          <button
-                            type="button"
-                            className={page.active ? 'tinyButton protected' : 'tinyButton'}
-                            onClick={() => void activateControlPage(page.id)}
-                            disabled={busyAction === `control-page-${page.id}`}
-                          >
-                            {busyAction === `control-page-${page.id}` ? '...' : page.active ? 'LIVE' : 'ACTIVATE'}
-                          </button>
+                          <div className="buttonRow">
+                            <button
+                              type="button"
+                              className={page.active ? 'tinyButton protected' : 'tinyButton'}
+                              onClick={() => void activateControlPage(page.id)}
+                              disabled={busyAction === `control-page-${page.id}`}
+                            >
+                              {busyAction === `control-page-${page.id}` ? '...' : page.active ? 'LIVE' : 'ACTIVATE'}
+                            </button>
+                            <button
+                              type="button"
+                              className="tinyButton"
+                              onClick={() => void saveControlPageConfig(page.id)}
+                              disabled={busyAction === `control-page-save-${page.id}`}
+                            >
+                              {busyAction === `control-page-save-${page.id}` ? '...' : 'SAVE'}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1913,14 +2017,58 @@ export default function NexusEnterprisePage() {
                           <p>
                             {salvo.name} • {salvo.mode} • {salvo.description}
                           </p>
-                          <button
-                            type="button"
-                            className="tinyButton protected"
-                            onClick={() => void runSalvo(salvo.id)}
-                            disabled={busyAction === `salvo-${salvo.id}`}
-                          >
-                            {busyAction === `salvo-${salvo.id}` ? '...' : 'RUN'}
-                          </button>
+                          <div className="buttonRow">
+                            <button
+                              type="button"
+                              className="tinyButton protected"
+                              onClick={() => void runSalvo(salvo.id)}
+                              disabled={busyAction === `salvo-${salvo.id}`}
+                            >
+                              {busyAction === `salvo-${salvo.id}` ? '...' : 'RUN'}
+                            </button>
+                            <button
+                              type="button"
+                              className="tinyButton"
+                              onClick={() => void saveControlSalvoConfig(salvo.id, salvo.routeIds)}
+                              disabled={busyAction === `salvo-save-${salvo.id}`}
+                            >
+                              {busyAction === `salvo-save-${salvo.id}` ? '...' : 'SAVE'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">tally / umd</span>
+                      <small>program and preview mapping</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.controlConfig.tallies.map((tally) => (
+                        <div key={tally.id} className="selectionBar">
+                          <p>
+                            {tally.label} • {tally.source} {'->'} {tally.destination}
+                          </p>
+                          <div className="buttonRow">
+                            <button
+                              type="button"
+                              className={tally.program ? 'tinyButton protected' : 'tinyButton'}
+                              onClick={() => void toggleTally(tally.id, 'program')}
+                              disabled={busyAction === `tally-${tally.id}-program`}
+                            >
+                              {busyAction === `tally-${tally.id}-program` ? '...' : 'PGM'}
+                            </button>
+                            <button
+                              type="button"
+                              className={tally.preview ? 'tinyButton protected' : 'tinyButton'}
+                              onClick={() => void toggleTally(tally.id, 'preview')}
+                              disabled={busyAction === `tally-${tally.id}-preview`}
+                            >
+                              {busyAction === `tally-${tally.id}-preview` ? '...' : 'PVW'}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

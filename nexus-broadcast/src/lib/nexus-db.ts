@@ -751,6 +751,41 @@ export async function runControlSalvo(salvoId: number) {
   return salvo
 }
 
+export async function saveControlPage(page: ControlPageRecord) {
+  const state = await readState()
+  state.controlPages = state.controlPages.map((item) => (item.id === page.id ? page : item))
+  addEvent(state, 'Control page saved', `${page.name} configuration updated.`)
+  await writeState(state)
+  return page
+}
+
+export async function saveControlSalvo(salvo: SalvoRecord) {
+  const state = await readState()
+  state.controlSalvos = state.controlSalvos.map((item) => (item.id === salvo.id ? salvo : item))
+  addEvent(state, 'Salvo saved', `${salvo.name} configuration updated.`)
+  await writeState(state)
+  return salvo
+}
+
+export async function toggleTallyMode(tallyId: number, mode: 'program' | 'preview') {
+  const state = await readState()
+  state.controlTallies = state.controlTallies.map((tally) =>
+    tally.id === tallyId
+      ? {
+          ...tally,
+          program: mode === 'program' ? !tally.program : false,
+          preview: mode === 'preview' ? !tally.preview : false,
+        }
+      : tally,
+  )
+  const tally = state.controlTallies.find((item) => item.id === tallyId)
+  if (tally) {
+    addEvent(state, 'Tally updated', `${tally.label} ${mode} state changed.`)
+  }
+  await writeState(state)
+  return tally
+}
+
 export async function listProductionSetups() {
   const state = await readState()
   return {
