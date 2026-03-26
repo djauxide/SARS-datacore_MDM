@@ -106,6 +106,27 @@ export type JobRecord = {
   completedAt?: string
 }
 
+export type SenderRecord = {
+  id: number
+  label: string
+  flowId: number
+  transport: string
+  deviceId: number
+  manifestHref: string
+  active: boolean
+}
+
+export type ReceiverRecord = {
+  id: number
+  label: string
+  format: string
+  transport: string
+  deviceId: number
+  activeSenderId?: number
+  stagedSenderId?: number
+  activationMode: 'immediate' | 'scheduled'
+}
+
 export type GpioRecord = {
   id: number
   port: string
@@ -156,6 +177,8 @@ export type PlatformSnapshot = {
   routes: RouteRecord[]
   workflows: WorkflowRecord[]
   jobs: JobRecord[]
+  senders: SenderRecord[]
+  receivers: ReceiverRecord[]
   metrics: {
     onAirServices: number
     activeIncidents: number

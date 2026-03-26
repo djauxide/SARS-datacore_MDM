@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPlatformSnapshot, runWorkflow } from '@/lib/nexus-db'
+import { getPlatformSnapshot, queueConnectorJob, runWorkflow } from '@/lib/nexus-db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,6 +14,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Workflow id is required.' }, { status: 400 })
   }
 
+  const snapshot = await getPlatformSnapshot()
+  const workflow = snapshot.workflows.find((item) => item.id === body.id)
+  const connector = snapshot.connectors.find((item) => item.name === workflow?.target)
+  if (connector) {
+    await queueConnectorJob(connector.id, 'run-workflow', { workflowId: body.id })
+  }
   await runWorkflow(body.id)
   return NextResponse.json({ ok: true })
 }

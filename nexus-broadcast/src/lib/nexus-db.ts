@@ -8,9 +8,11 @@ import type {
   NmosFlowRecord,
   NmosNodeRecord,
   PlatformSnapshot,
+  ReceiverRecord,
   RouteRecord,
   RunbookRecord,
   ScenarioRecord,
+  SenderRecord,
   SiteRecord,
   TenantRecord,
   UserRecord,
@@ -27,6 +29,8 @@ type PersistedState = {
   routes: RouteRecord[]
   workflows: WorkflowRecord[]
   jobs: JobRecord[]
+  senders: SenderRecord[]
+  receivers: ReceiverRecord[]
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]
   nmosFlows: NmosFlowRecord[]
@@ -128,6 +132,16 @@ function seedState(): PersistedState {
       { id: 3, name: 'Legacy Tally Sync', purpose: 'Align GPIO tally and program bus status.', eta: '12 sec', state: 'complete' },
     ],
     jobs: [],
+    senders: [
+      { id: 1, label: 'Studio 1 Program Sender', flowId: 1, transport: 'urn:x-nmos:transport:rtp', deviceId: 1, manifestHref: '/manifests/studio-1.sdp', active: true },
+      { id: 2, label: 'Replay A Sender', flowId: 4, transport: 'urn:x-nmos:transport:websocket', deviceId: 3, manifestHref: '/manifests/replay-a.json', active: false },
+      { id: 3, label: 'Commentary A Sender', flowId: 2, transport: 'urn:x-nmos:transport:rtp', deviceId: 4, manifestHref: '/manifests/commentary-a.sdp', active: true },
+    ],
+    receivers: [
+      { id: 1, label: 'Cloud Switcher A Receiver', format: 'video', transport: 'urn:x-nmos:transport:rtp', deviceId: 5, activeSenderId: 1, stagedSenderId: 1, activationMode: 'immediate' },
+      { id: 2, label: 'Program Bus B Receiver', format: 'video', transport: 'urn:x-nmos:transport:websocket', deviceId: 2, activeSenderId: 2, stagedSenderId: 2, activationMode: 'immediate' },
+      { id: 3, label: 'Audio Core Receiver', format: 'audio', transport: 'urn:x-nmos:transport:rtp', deviceId: 4, activeSenderId: 3, stagedSenderId: 3, activationMode: 'immediate' },
+    ],
     events: [
       { id: 1, time: nowClock(), title: 'Enterprise datastore initialized', detail: 'Nexus seeded tenants, sites, connectors, discovery, and operational state.' },
       { id: 2, time: nowClock(), title: 'NMOS registry linked', detail: 'Initial simulated device registration completed.' },
@@ -146,6 +160,8 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     routes: raw.routes ?? seeded.routes,
     workflows: raw.workflows ?? seeded.workflows,
     jobs: raw.jobs ?? seeded.jobs,
+    senders: raw.senders ?? seeded.senders,
+    receivers: raw.receivers ?? seeded.receivers,
     equipment: raw.equipment ?? seeded.equipment,
     nmosNodes: raw.nmosNodes ?? seeded.nmosNodes,
     nmosFlows: raw.nmosFlows ?? seeded.nmosFlows,
@@ -220,6 +236,9 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
     connectors: state.connectors,
     routes: state.routes,
     workflows: state.workflows,
+    jobs: state.jobs,
+    senders: state.senders,
+    receivers: state.receivers,
     metrics: {
       onAirServices: state.equipment.filter((item) => item.status === 'online').length,
       activeIncidents: state.alerts.filter((item) => !item.acknowledged && item.severity !== 'info').length,
@@ -237,7 +256,6 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
     alerts: state.alerts,
     scenarios: state.scenarios,
     runbooks: state.runbooks,
-    jobs: state.jobs,
     events: state.events,
   }
 }
@@ -384,14 +402,24 @@ export async function setConnectorStatus(connectorId: number, status: ConnectorR
 
 export async function switchRoute(routeId: number) {
   const state = await readState()
+  const selected = state.routes.find((candidate) => candidate.id === routeId)
   state.routes = state.routes.map((route) =>
     route.id === routeId
       ? { ...route, state: route.state === 'active' ? 'standby' : 'active' }
-      : route.destination === state.routes.find((candidate) => candidate.id === routeId)?.destination
-        ? { ...route, state: route.id === routeId ? route.state : 'standby' }
+      : route.destination === selected?.destination
+        ? { ...route, state: 'standby' }
         : route,
   )
   const route = state.routes.find((item) => item.id === routeId)
+  if (route) {
+    const sender = state.senders.find((item) => route.source.startsWith(item.label.split(' ')[0]))
+    const receiver = state.receivers.find((item) => route.destination.startsWith(item.label.split(' ')[0]))
+    if (sender && receiver) {
+      state.receivers = state.receivers.map((item) =>
+        item.id === receiver.id ? { ...item, stagedSenderId: sender.id, activeSenderId: sender.id, activationMode: 'immediate' } : item,
+      )
+    }
+  }
   if (route) {
     addEvent(state, 'Route switched', `${route.source} to ${route.destination} via ${route.controller} set ${route.state === 'active' ? 'standby' : 'active'}.`)
   }
@@ -448,4 +476,28 @@ export async function queueConnectorJob(connectorId: number, action: AdapterActi
   await writeState(nextState)
 
   return nextState.jobs.find((job) => job.id === jobId)
+}
+
+export async function stageReceiverConnection(receiverId: number, senderId?: number) {
+  const state = await readState()
+  state.receivers = state.receivers.map((receiver) =>
+    receiver.id === receiverId ? { ...receiver, stagedSenderId: senderId, activationMode: 'immediate' } : receiver,
+  )
+  const receiver = state.receivers.find((item) => item.id === receiverId)
+  if (receiver) {
+    addEvent(state, 'Receiver staged', `${receiver.label} staged to sender ${senderId ?? 'none'}.`)
+  }
+  await writeState(state)
+}
+
+export async function activateReceiverConnection(receiverId: number) {
+  const state = await readState()
+  state.receivers = state.receivers.map((receiver) =>
+    receiver.id === receiverId ? { ...receiver, activeSenderId: receiver.stagedSenderId } : receiver,
+  )
+  const receiver = state.receivers.find((item) => item.id === receiverId)
+  if (receiver) {
+    addEvent(state, 'Receiver activated', `${receiver.label} activated sender ${receiver.activeSenderId ?? 'none'}.`)
+  }
+  await writeState(state)
 }
