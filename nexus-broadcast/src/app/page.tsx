@@ -69,6 +69,8 @@ export default function NexusEnterprisePage() {
   const [snapshot, setSnapshot] = useState<PlatformSnapshot | null>(null)
   const [session, setSession] = useState<SessionRecord | null>(null)
   const [users, setUsers] = useState<UserRecord[]>([])
+  const [selectedProductionId, setSelectedProductionId] = useState<number | null>(null)
+  const [productionDraft, setProductionDraft] = useState<Partial<ProductionSetupRecord> | null>(null)
   const [loading, setLoading] = useState(true)
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting'>('connecting')
@@ -120,6 +122,21 @@ export default function NexusEnterprisePage() {
     return () => source.close()
   }, [])
 
+  useEffect(() => {
+    if (!snapshot?.productions.length) return
+    const fallbackId = snapshot.activeProductionId ?? snapshot.productions[0]?.id ?? null
+    setSelectedProductionId((current) =>
+      current && snapshot.productions.some((production) => production.id === current) ? current : fallbackId,
+    )
+  }, [snapshot])
+
+  useEffect(() => {
+    if (!snapshot || selectedProductionId == null) return
+    const production = snapshot.productions.find((item) => item.id === selectedProductionId)
+    if (!production) return
+    setProductionDraft(production)
+  }, [selectedProductionId, snapshot])
+
   const filteredUsers = useMemo(() => {
     if (!session) return users
     return users.filter((user) => user.tenantId === session.tenantId)
@@ -140,6 +157,10 @@ export default function NexusEnterprisePage() {
   const currentProduction = useMemo(
     () => snapshot?.productions.find((production) => production.id === snapshot.activeProductionId) ?? snapshot?.productions[0] ?? null,
     [snapshot],
+  )
+  const selectedProduction = useMemo(
+    () => snapshot?.productions.find((production) => production.id === selectedProductionId) ?? null,
+    [selectedProductionId, snapshot],
   )
   const activeRoute = useMemo(() => snapshot?.routes.find((route) => route.state === 'active') ?? null, [snapshot])
   const standbyRoute = useMemo(() => snapshot?.routes.find((route) => route.state === 'standby') ?? null, [snapshot])
@@ -386,6 +407,38 @@ export default function NexusEnterprisePage() {
         id: undefined,
         name: `${production.name} Copy`,
         status: 'draft',
+      }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const updateProductionDraft = <K extends keyof ProductionSetupRecord>(key: K, value: ProductionSetupRecord[K]) => {
+    setProductionDraft((current) => (current ? { ...current, [key]: value } : current))
+  }
+
+  const saveProductionDraft = async () => {
+    if (!productionDraft) return
+    setBusyAction('production-save-draft')
+    await requestJson('/api/productions', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'save',
+        id: productionDraft.id,
+        name: productionDraft.name,
+        productionType: productionDraft.productionType,
+        status: productionDraft.status,
+        siteId: productionDraft.siteId,
+        studioId: productionDraft.studioId,
+        mcrChainId: productionDraft.mcrChainId,
+        multiviewLayout: productionDraft.multiviewLayout,
+        cameraCount: productionDraft.cameraCount,
+        audioProfile: productionDraft.audioProfile,
+        graphicsProfile: productionDraft.graphicsProfile,
+        redundancy: productionDraft.redundancy,
+        primaryRouteIds: productionDraft.primaryRouteIds,
+        connectorIds: productionDraft.connectorIds,
+        notes: productionDraft.notes,
       }),
     })
     await loadSnapshot()
@@ -1572,6 +1625,13 @@ export default function NexusEnterprisePage() {
                         <div className="buttonRow">
                           <button
                             type="button"
+                            className="ghostButton"
+                            onClick={() => setSelectedProductionId(production.id)}
+                          >
+                            Edit spec
+                          </button>
+                          <button
+                            type="button"
                             className="ghostButton activeToggle"
                             onClick={() => void applyProduction(production.id)}
                             disabled={busyAction === `production-${production.id}` || production.status === 'live'}
@@ -1591,6 +1651,199 @@ export default function NexusEnterprisePage() {
                     )
                   })}
                 </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Production designer</p>
+                    <h2>Author the show spec per production</h2>
+                  </div>
+                </div>
+                {selectedProduction && productionDraft ? (
+                  <div className="manufacturerGrid">
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">show</span>
+                        <small>identity and mode</small>
+                      </div>
+                      <div className="trainingMeta">
+                        <label className="trainingText">
+                          Production
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.name ?? ''}
+                            onChange={(event) => updateProductionDraft('name', event.target.value)}
+                          />
+                        </label>
+                        <label className="trainingText">
+                          Type
+                          <select
+                            className="sel"
+                            value={productionDraft.productionType ?? 'sports'}
+                            onChange={(event) => updateProductionDraft('productionType', event.target.value as ProductionSetupRecord['productionType'])}
+                          >
+                            <option value="sports">sports</option>
+                            <option value="news">news</option>
+                            <option value="entertainment">entertainment</option>
+                            <option value="remote">remote</option>
+                          </select>
+                        </label>
+                        <label className="trainingText">
+                          Status
+                          <select
+                            className="sel"
+                            value={productionDraft.status ?? 'draft'}
+                            onChange={(event) => updateProductionDraft('status', event.target.value as ProductionSetupRecord['status'])}
+                          >
+                            <option value="draft">draft</option>
+                            <option value="ready">ready</option>
+                            <option value="live">live</option>
+                          </select>
+                        </label>
+                        <label className="trainingText">
+                          Notes
+                          <textarea
+                            className="inp"
+                            rows={5}
+                            value={productionDraft.notes ?? ''}
+                            onChange={(event) => updateProductionDraft('notes', event.target.value)}
+                          />
+                        </label>
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">resources</span>
+                        <small>layout, cameras, and resilience</small>
+                      </div>
+                      <div className="trainingMeta">
+                        <label className="trainingText">
+                          Multiview layout
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.multiviewLayout ?? ''}
+                            onChange={(event) => updateProductionDraft('multiviewLayout', event.target.value)}
+                          />
+                        </label>
+                        <label className="trainingText">
+                          Camera count
+                          <input
+                            className="inp"
+                            type="number"
+                            min={1}
+                            value={productionDraft.cameraCount ?? 1}
+                            onChange={(event) => updateProductionDraft('cameraCount', Number(event.target.value))}
+                          />
+                        </label>
+                        <label className="trainingText">
+                          Redundancy
+                          <select
+                            className="sel"
+                            value={productionDraft.redundancy ?? 'single'}
+                            onChange={(event) => updateProductionDraft('redundancy', event.target.value as ProductionSetupRecord['redundancy'])}
+                          >
+                            <option value="single">single</option>
+                            <option value="protected">protected</option>
+                            <option value="dual-site">dual-site</option>
+                          </select>
+                        </label>
+                        <label className="trainingText">
+                          Audio profile
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.audioProfile ?? ''}
+                            onChange={(event) => updateProductionDraft('audioProfile', event.target.value)}
+                          />
+                        </label>
+                        <label className="trainingText">
+                          Graphics profile
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.graphicsProfile ?? ''}
+                            onChange={(event) => updateProductionDraft('graphicsProfile', event.target.value)}
+                          />
+                        </label>
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">binding</span>
+                        <small>site, studio, and MCR target</small>
+                      </div>
+                      <div className="trainingMeta">
+                        <label className="trainingText">
+                          Site
+                          <select
+                            className="sel"
+                            value={productionDraft.siteId ?? snapshot.sites[0]?.id}
+                            onChange={(event) => updateProductionDraft('siteId', Number(event.target.value))}
+                          >
+                            {snapshot.sites.map((site) => (
+                              <option key={site.id} value={site.id}>
+                                {site.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="trainingText">
+                          Studio
+                          <select
+                            className="sel"
+                            value={productionDraft.studioId ?? snapshot.virtualStudios[0]?.id}
+                            onChange={(event) => updateProductionDraft('studioId', Number(event.target.value))}
+                          >
+                            {snapshot.virtualStudios.map((studio) => (
+                              <option key={studio.id} value={studio.id}>
+                                {studio.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="trainingText">
+                          MCR chain
+                          <select
+                            className="sel"
+                            value={productionDraft.mcrChainId ?? snapshot.mcrChains[0]?.id}
+                            onChange={(event) => updateProductionDraft('mcrChainId', Number(event.target.value))}
+                          >
+                            {snapshot.mcrChains.map((chain) => (
+                              <option key={chain.id} value={chain.id}>
+                                {chain.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <div className="buttonRow">
+                          <button
+                            type="button"
+                            className="ghostButton activeToggle"
+                            onClick={() => void saveProductionDraft()}
+                            disabled={busyAction === 'production-save-draft'}
+                          >
+                            {busyAction === 'production-save-draft' ? 'Saving...' : 'Save spec'}
+                          </button>
+                          <button
+                            type="button"
+                            className="ghostButton"
+                            onClick={() => void applyProduction(selectedProduction.id)}
+                            disabled={busyAction === `production-${selectedProduction.id}`}
+                          >
+                            {busyAction === `production-${selectedProduction.id}` ? 'Applying...' : 'Apply spec'}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  </div>
+                ) : (
+                  <p className="trainingText">Select a production to start authoring.</p>
+                )}
               </article>
 
               <article className="panel">
