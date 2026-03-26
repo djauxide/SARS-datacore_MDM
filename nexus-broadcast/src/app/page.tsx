@@ -2,29 +2,34 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import type { PlatformSnapshot } from '@/lib/types'
+import type { PlatformSnapshot, SessionRecord, UserRecord, UserRole } from '@/lib/types'
 
-type Workspace = 'operator' | 'engineer' | 'trainee'
+type Workspace = 'operator' | 'engineer' | 'trainee' | 'admin'
 
 const workspaceCopy: Record<Workspace, { label: string; title: string; summary: string }> = {
   operator: {
     label: 'Operator',
-    title: 'Live production control for directors, TDs, and transmission teams.',
-    summary: 'Run scenarios, watch incidents, supervise runbooks, and keep on-air services stable.',
+    title: 'Live production control for transmission, switching, and on-air continuity.',
+    summary: 'Run scenarios, monitor incidents, and keep active services stable across the platform.',
   },
   engineer: {
     label: 'Engineer',
-    title: 'Engineering control for NMOS, discovery, monitoring, and legacy integration.',
-    summary: 'Manage IP/SDI interoperability, observe hardware health, and drive GPIO for older devices.',
+    title: 'Engineering control for discovery, NMOS, monitoring, and legacy integration.',
+    summary: 'Track site health, inspect connectors, and operate GPIO-linked legacy devices with live telemetry.',
   },
   trainee: {
     label: 'Trainee',
-    title: 'Structured onboarding for operators, engineers, and junior support staff.',
-    summary: 'Turn the system into a teachable product with guided modules and practice paths.',
+    title: 'Structured learning and simulation for new operators and engineers.',
+    summary: 'Use scenario-driven training and the integrated curriculum to build repeatable operational confidence.',
+  },
+  admin: {
+    label: 'Admin',
+    title: 'Enterprise oversight for tenants, sites, users, and platform posture.',
+    summary: 'Supervise the whole deployment footprint, role assignments, and service connectivity across regions.',
   },
 }
 
-async function requestJson(url: string, init?: RequestInit) {
+async function requestJson<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, {
     ...init,
     headers: {
@@ -37,50 +42,76 @@ async function requestJson(url: string, init?: RequestInit) {
     throw new Error(`Request failed: ${response.status}`)
   }
 
-  return response.json()
+  return (await response.json()) as T
 }
 
-export default function NexusProductPage() {
+function workspaceForRole(role: UserRole): Workspace {
+  if (role === 'admin') return 'admin'
+  return role
+}
+
+export default function NexusEnterprisePage() {
   const [workspace, setWorkspace] = useState<Workspace>('operator')
   const [snapshot, setSnapshot] = useState<PlatformSnapshot | null>(null)
+  const [session, setSession] = useState<SessionRecord | null>(null)
+  const [users, setUsers] = useState<UserRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [busyAction, setBusyAction] = useState<string | null>(null)
+  const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting'>('connecting')
   const [error, setError] = useState<string | null>(null)
 
   const loadSnapshot = async () => {
-    try {
-      const data = (await requestJson('/api/system')) as PlatformSnapshot
-      setSnapshot(data)
-      setError(null)
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Failed to load platform state.')
-    } finally {
-      setLoading(false)
-    }
+    const data = await requestJson<PlatformSnapshot>('/api/system')
+    setSnapshot(data)
+  }
+
+  const loadSession = async () => {
+    const [sessionResponse, usersResponse] = await Promise.all([
+      requestJson<{ session: SessionRecord }>('/api/auth/session'),
+      requestJson<{ users: UserRecord[] }>('/api/system-users'),
+    ])
+
+    setSession(sessionResponse.session)
+    setWorkspace(workspaceForRole(sessionResponse.session.role))
+    setUsers(usersResponse.users)
   }
 
   useEffect(() => {
-    void loadSnapshot()
-    const timer = window.setInterval(() => {
-      void loadSnapshot()
-    }, 5000)
+    const bootstrap = async () => {
+      try {
+        await Promise.all([loadSnapshot(), loadSession()])
+        setError(null)
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : 'Failed to load enterprise platform state.')
+      } finally {
+        setLoading(false)
+      }
+    }
 
-    return () => window.clearInterval(timer)
+    void bootstrap()
   }, [])
 
-  const derived = useMemo(() => {
-    if (!snapshot) return null
+  useEffect(() => {
+    const source = new EventSource('/api/stream')
 
-    const criticalAlerts = snapshot.alerts.filter((alert) => alert.severity === 'critical' && !alert.acknowledged).length
-    const degradedEquipment = snapshot.equipment.filter((item) => item.status !== 'online').length
-    const registeredNmos = snapshot.nmosNodes.filter((item) => item.status === 'registered').length
+    source.addEventListener('snapshot', (event) => {
+      setStreamStatus('live')
+      setSnapshot(JSON.parse(event.data) as PlatformSnapshot)
+    })
 
-    return {
-      criticalAlerts,
-      degradedEquipment,
-      registeredNmos,
+    source.onerror = () => {
+      setStreamStatus('reconnecting')
     }
-  }, [snapshot])
+
+    return () => source.close()
+  }, [])
+
+  const filteredUsers = useMemo(() => {
+    if (!session) return users
+    return users.filter((user) => user.tenantId === session.tenantId)
+  }, [session, users])
+
+  const activeSite = useMemo(() => snapshot?.sites.find((site) => site.id === session?.siteId) ?? snapshot?.sites[0], [session, snapshot])
 
   const runScenario = async (slug: string) => {
     setBusyAction(`scenario-${slug}`)
@@ -119,262 +150,391 @@ export default function NexusProductPage() {
     setBusyAction(null)
   }
 
+  const changeConnectorStatus = async (id: number, status: 'connected' | 'degraded' | 'offline') => {
+    setBusyAction(`connector-${id}-${status}`)
+    await requestJson('/api/connectors', {
+      method: 'POST',
+      body: JSON.stringify({ id, status }),
+    })
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const loginAs = async (userId: number) => {
+    setBusyAction(`login-${userId}`)
+    const response = await requestJson<{ session: SessionRecord }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    })
+    setSession(response.session)
+    setWorkspace(workspaceForRole(response.session.role))
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
+  const logout = async () => {
+    setBusyAction('logout')
+    await requestJson('/api/auth/logout', { method: 'POST' })
+    await loadSession()
+    await loadSnapshot()
+    setBusyAction(null)
+  }
+
   return (
     <main className="shell">
       <section className="hero">
         <div>
-          <p className="eyebrow">Nexus Broadcast Orchestrate</p>
-          <h1>One control plane for live production, engineering operations, NMOS discovery, and training.</h1>
+          <p className="eyebrow">Nexus Broadcast Orchestrate Enterprise</p>
+          <h1>Enterprise orchestration for live production, engineering operations, and broadcast training at multi-site scale.</h1>
           <p className="lede">
-            Built as a sellable product foundation that merges operator workflows, engineering visibility, and trainee enablement into a single platform.
+            This build adds role-aware sessions, live event streaming, site and tenant visibility, connector management, discovery, NMOS awareness, and legacy control.
           </p>
         </div>
         <div className="heroMeta">
-          <div className="statusPill live">{loading ? 'Loading' : 'Live product state'}</div>
+          <div className={`statusPill ${streamStatus === 'live' ? 'live' : 'warning'}`}>{streamStatus}</div>
+          <div className="statusPill subtle">{session ? `${session.name} • ${session.role}` : 'Loading session'}</div>
           <Link href="/training" className="ghostButton">
-            Open trainee curriculum
+            Open training hub
           </Link>
         </div>
       </section>
 
       <section className="kpiGrid">
         <article className="kpiCard">
+          <span>Connected sites</span>
+          <strong>{snapshot?.metrics.connectedSites ?? '--'}</strong>
+          <small>{snapshot?.sites.length ?? 0} sites in current footprint</small>
+        </article>
+        <article className="kpiCard">
+          <span>Connectors online</span>
+          <strong>{snapshot?.metrics.connectedConnectors ?? '--'}</strong>
+          <small>{snapshot?.connectors.length ?? 0} enterprise integrations</small>
+        </article>
+        <article className="kpiCard">
           <span>On-air services</span>
           <strong>{snapshot?.metrics.onAirServices ?? '--'}</strong>
-          <small>Stable production capacity across facilities</small>
+          <small>{snapshot?.metrics.activeIncidents ?? 0} incidents currently active</small>
         </article>
         <article className="kpiCard">
-          <span>Active incidents</span>
-          <strong>{snapshot?.metrics.activeIncidents ?? '--'}</strong>
-          <small>{derived?.criticalAlerts ?? 0} critical alerts require action</small>
-        </article>
-        <article className="kpiCard">
-          <span>NMOS registry</span>
-          <strong>{snapshot?.metrics.registeredNmosNodes ?? '--'}</strong>
-          <small>{derived?.registeredNmos ?? 0} registered nodes visible now</small>
-        </article>
-        <article className="kpiCard">
-          <span>GPIO active</span>
-          <strong>{snapshot?.metrics.gpioActive ?? '--'}</strong>
-          <small>{snapshot?.facilities.join(' • ') ?? 'Waiting for facilities'}</small>
+          <span>Enterprise users</span>
+          <strong>{filteredUsers.length}</strong>
+          <small>{snapshot?.tenants.length ?? 0} tenants visible</small>
         </article>
       </section>
 
-      <section className="tabRow">
-        {(Object.keys(workspaceCopy) as Workspace[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            className={workspace === key ? 'tab active' : 'tab'}
-            onClick={() => setWorkspace(key)}
-          >
-            {workspaceCopy[key].label}
-          </button>
-        ))}
-      </section>
+      <section className="workspace" style={{ marginTop: 18 }}>
+        <div className="primaryColumn">
+          <section className="tabRow">
+            {(Object.keys(workspaceCopy) as Workspace[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                className={workspace === key ? 'tab active' : 'tab'}
+                onClick={() => setWorkspace(key)}
+              >
+                {workspaceCopy[key].label}
+              </button>
+            ))}
+          </section>
 
-      <section className="panel">
-        <div className="panelHeader">
-          <div>
-            <p className="panelLabel">{workspaceCopy[workspace].label} workspace</p>
-            <h2>{workspaceCopy[workspace].title}</h2>
-          </div>
-          <p className="lede" style={{ margin: 0, maxWidth: 520 }}>
-            {workspaceCopy[workspace].summary}
-          </p>
-        </div>
-      </section>
+          <article className="panel">
+            <div className="panelHeader">
+              <div>
+                <p className="panelLabel">{workspaceCopy[workspace].label} workspace</p>
+                <h2>{workspaceCopy[workspace].title}</h2>
+              </div>
+              <p className="lede" style={{ margin: 0, maxWidth: 520 }}>
+                {workspaceCopy[workspace].summary}
+              </p>
+            </div>
+          </article>
 
-      {error ? (
-        <section className="panel" style={{ marginTop: 18 }}>
-          <p className="trainingText">{error}</p>
-        </section>
-      ) : null}
-
-      {workspace === 'operator' ? (
-        <section className="workspace" style={{ marginTop: 18 }}>
-          <div className="primaryColumn">
-            <article className="panel">
-              <div className="panelHeader">
-                <div>
-                  <p className="panelLabel">Live scenarios</p>
-                  <h2>Production modes</h2>
+          {workspace === 'operator' && snapshot ? (
+            <>
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Live scenarios</p>
+                    <h2>Production event control</h2>
+                  </div>
                 </div>
-              </div>
-              <div className="trainingGrid">
-                {snapshot?.scenarios.map((scenario) => (
-                  <article key={scenario.id} className="trainingCard">
-                    <div className="trainingCardHeader">
-                      <span className={scenario.status === 'active' ? 'badge live' : 'badge standby'}>{scenario.status}</span>
-                    </div>
-                    <h3>{scenario.name}</h3>
-                    <p>{scenario.description}</p>
-                    <button
-                      type="button"
-                      className="ghostButton activeToggle"
-                      onClick={() => void runScenario(scenario.slug)}
-                      disabled={busyAction === `scenario-${scenario.slug}`}
-                    >
-                      {busyAction === `scenario-${scenario.slug}` ? 'Applying...' : 'Activate scenario'}
-                    </button>
-                  </article>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel">
-              <div className="panelHeader">
-                <div>
-                  <p className="panelLabel">Runbooks</p>
-                  <h2>Operational automation</h2>
-                </div>
-              </div>
-              <div className="automationGrid">
-                {snapshot?.runbooks.map((runbook) => (
-                  <article key={runbook.id} className="automationCard">
-                    <div className="automationHeader">
-                      <strong>{runbook.name}</strong>
-                      <span className={`statusPill ${runbook.state === 'complete' ? 'live' : runbook.state === 'running' ? 'warning' : 'subtle'}`}>
-                        {runbook.state}
-                      </span>
-                    </div>
-                    <p>{runbook.purpose}</p>
-                    <div className="automationMeta">
-                      <small>ETA {runbook.eta}</small>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </article>
-          </div>
-
-          <aside className="sideColumn">
-            <article className="panel compactPanel">
-              <div className="panelHeader">
-                <div>
-                  <p className="panelLabel">Alerts</p>
-                  <h2>On-air risk</h2>
-                </div>
-              </div>
-              <div className="alertList">
-                {snapshot?.alerts.map((alert) => (
-                  <article key={alert.id} className={`alertCard ${alert.severity}`}>
-                    <div>
-                      <strong>{alert.title}</strong>
-                      <p>{alert.detail}</p>
-                    </div>
-                    <div className="alertFooter">
-                      <span>{alert.severity}</span>
+                <div className="trainingGrid">
+                  {snapshot.scenarios.map((scenario) => (
+                    <article key={scenario.id} className="trainingCard">
+                      <div className="trainingCardHeader">
+                        <span className={scenario.status === 'active' ? 'badge live' : 'badge standby'}>{scenario.status}</span>
+                      </div>
+                      <h3>{scenario.name}</h3>
+                      <p>{scenario.description}</p>
                       <button
                         type="button"
-                        className="ghostButton"
-                        onClick={() => void acknowledge(alert.id)}
-                        disabled={alert.acknowledged || busyAction === `alert-${alert.id}`}
+                        className="ghostButton activeToggle"
+                        onClick={() => void runScenario(scenario.slug)}
+                        disabled={busyAction === `scenario-${scenario.slug}`}
                       >
-                        {alert.acknowledged ? 'Acknowledged' : 'Acknowledge'}
+                        {busyAction === `scenario-${scenario.slug}` ? 'Applying...' : 'Activate scenario'}
                       </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel compactPanel">
-              <div className="panelHeader">
-                <div>
-                  <p className="panelLabel">Event feed</p>
-                  <h2>Production audit</h2>
+                    </article>
+                  ))}
                 </div>
-              </div>
-              <div className="eventList">
-                {snapshot?.events.map((event) => (
-                  <div key={event.id} className="eventRow">
-                    <span>{event.time}</span>
-                    <div>
-                      <strong>{event.title}</strong>
-                      <p>{event.detail}</p>
-                    </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">On-air risks</p>
+                    <h2>Alerts and event feed</h2>
                   </div>
-                ))}
-              </div>
-            </article>
-          </aside>
-        </section>
-      ) : null}
-
-      {workspace === 'engineer' ? (
-        <section className="workspace" style={{ marginTop: 18 }}>
-          <div className="primaryColumn">
-            <article className="panel">
-              <div className="panelHeader">
-                <div>
-                  <p className="panelLabel">Discovery + inventory</p>
-                  <h2>Equipment and monitoring</h2>
                 </div>
-                <button type="button" className="ghostButton activeToggle" onClick={() => void discoverEquipment()} disabled={busyAction === 'discovery'}>
-                  {busyAction === 'discovery' ? 'Scanning...' : 'Run equipment discovery'}
-                </button>
-              </div>
-              <div className="deviceList">
-                {snapshot?.equipment.map((item) => (
-                  <article key={item.id} className="deviceCard">
-                    <div className="deviceIdentity">
-                      <div className={`healthDot ${item.status}`} />
+                <div className="alertList">
+                  {snapshot.alerts.map((alert) => (
+                    <article key={alert.id} className={`alertCard ${alert.severity}`}>
                       <div>
-                        <strong>{item.name}</strong>
-                        <p>
-                          {item.vendor} {item.model} • {item.role}
-                        </p>
+                        <strong>{alert.title}</strong>
+                        <p>{alert.detail}</p>
                       </div>
-                    </div>
-                    <div className="deviceStats">
-                      <span>{item.facility}</span>
-                      <span>CPU {item.cpuLoad}%</span>
-                      <span>{item.temperature} C</span>
-                      <span>{item.latencyMs} ms</span>
-                    </div>
-                    <p className="trainingText">{item.protocols.join(' • ')}</p>
-                  </article>
-                ))}
-              </div>
-            </article>
+                      <div className="alertFooter">
+                        <span>{alert.severity}</span>
+                        <button
+                          type="button"
+                          className="ghostButton"
+                          onClick={() => void acknowledge(alert.id)}
+                          disabled={alert.acknowledged || busyAction === `alert-${alert.id}`}
+                        >
+                          {alert.acknowledged ? 'Acknowledged' : 'Acknowledge'}
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </article>
+            </>
+          ) : null}
 
+          {workspace === 'engineer' && snapshot ? (
+            <>
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Site and device monitoring</p>
+                    <h2>Engineering operations</h2>
+                  </div>
+                  <button type="button" className="ghostButton activeToggle" onClick={() => void discoverEquipment()} disabled={busyAction === 'discovery'}>
+                    {busyAction === 'discovery' ? 'Scanning...' : 'Run discovery'}
+                  </button>
+                </div>
+                <div className="siteGrid">
+                  {snapshot.sites.map((site) => (
+                    <article key={site.id} className="trainingCard">
+                      <div className="trainingCardHeader">
+                        <span className={site.health === 'healthy' ? 'badge live' : site.health === 'watch' ? 'badge warning' : 'badge critical'}>
+                          {site.health}
+                        </span>
+                        <small>{site.mode}</small>
+                      </div>
+                      <h3>{site.name}</h3>
+                      <p>{site.location}</p>
+                      <div className="trainingMeta">
+                        <small>{site.activeServices} active services</small>
+                        <small>PTP offset {site.ptpOffsetNs} ns</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Connectors</p>
+                    <h2>Enterprise integrations</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.connectors.map((connector) => (
+                    <article key={connector.id} className="trainingCard">
+                      <div className="trainingCardHeader">
+                        <span className={connector.status === 'connected' ? 'badge live' : connector.status === 'degraded' ? 'badge warning' : 'badge critical'}>
+                          {connector.status}
+                        </span>
+                        <small>{connector.type}</small>
+                      </div>
+                      <h3>{connector.name}</h3>
+                      <p>
+                        {connector.vendor} • {connector.protocol}
+                      </p>
+                      <div className="buttonRow">
+                        <button type="button" className="ghostButton" onClick={() => void changeConnectorStatus(connector.id, 'connected')}>
+                          Connect
+                        </button>
+                        <button type="button" className="ghostButton" onClick={() => void changeConnectorStatus(connector.id, 'degraded')}>
+                          Degrade
+                        </button>
+                        <button type="button" className="ghostButton dangerButton" onClick={() => void changeConnectorStatus(connector.id, 'offline')}>
+                          Offline
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </article>
+            </>
+          ) : null}
+
+          {workspace === 'trainee' ? (
             <article className="panel">
               <div className="panelHeader">
                 <div>
-                  <p className="panelLabel">NMOS integration</p>
-                  <h2>Registry and connection visibility</h2>
+                  <p className="panelLabel">Trainee enablement</p>
+                  <h2>Integrated curriculum and scenario practice</h2>
                 </div>
               </div>
               <div className="trainingGrid">
-                {snapshot?.nmosNodes.map((node) => (
-                  <article key={node.id} className="trainingCard">
-                    <div className="trainingCardHeader">
-                      <span className={node.status === 'registered' ? 'badge live' : 'badge warning'}>{node.status}</span>
-                      <small>{node.kind}</small>
-                    </div>
-                    <h3>{node.label}</h3>
-                    <p>{node.subscription}</p>
-                    <div className="trainingMeta">
-                      <small>Node ID: {node.nodeId}</small>
-                      <small>Transport: {node.transport}</small>
-                    </div>
-                  </article>
-                ))}
+                <article className="trainingCard">
+                  <h3>Operator onboarding</h3>
+                  <p>Use the training hub to walk through startup, switching, incident response, and shift handovers.</p>
+                </article>
+                <article className="trainingCard">
+                  <h3>Engineer onboarding</h3>
+                  <p>Learn discovery, connector health, NMOS behavior, monitoring posture, and GPIO intervention patterns.</p>
+                </article>
+                <article className="trainingCard">
+                  <h3>Live simulation</h3>
+                  <p>The same enterprise shell supports realistic scenario activation and event replay for drills.</p>
+                </article>
               </div>
+              <Link href="/training" className="ghostButton activeToggle" style={{ marginTop: 18, display: 'inline-flex' }}>
+                Launch full curriculum
+              </Link>
             </article>
-          </div>
+          ) : null}
 
-          <aside className="sideColumn">
+          {workspace === 'admin' && snapshot ? (
+            <>
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Tenants and sites</p>
+                    <h2>Enterprise oversight</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {snapshot.tenants.map((tenant) => (
+                    <article key={tenant.id} className="trainingCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">{tenant.tier}</span>
+                      </div>
+                      <h3>{tenant.name}</h3>
+                      <p>{tenant.region}</p>
+                      <div className="trainingMeta">
+                        <small>{snapshot.sites.filter((site) => site.tenantId === tenant.id).length} sites</small>
+                        <small>{snapshot.users.filter((user) => user.tenantId === tenant.id).length} users</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Role access</p>
+                    <h2>Enterprise user switching</h2>
+                  </div>
+                </div>
+                <div className="trainingGrid">
+                  {filteredUsers.map((user) => (
+                    <article key={user.id} className="trainingCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">{user.role}</span>
+                      </div>
+                      <h3>{user.name}</h3>
+                      <p>{user.email}</p>
+                      <button
+                        type="button"
+                        className="ghostButton activeToggle"
+                        onClick={() => void loginAs(user.id)}
+                        disabled={busyAction === `login-${user.id}`}
+                      >
+                        {busyAction === `login-${user.id}` ? 'Switching...' : 'Impersonate workspace'}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </article>
+            </>
+          ) : null}
+        </div>
+
+        <aside className="sideColumn">
+          <article className="panel compactPanel">
+            <div className="panelHeader">
+              <div>
+                <p className="panelLabel">Session</p>
+                <h2>Current workspace user</h2>
+              </div>
+            </div>
+            <div className="sessionCard">
+              <strong>{session?.name ?? 'Loading user'}</strong>
+              <p>{session?.email ?? 'Loading email'}</p>
+              <span className="statusPill subtle">{session?.role ?? 'pending'}</span>
+              <button type="button" className="ghostButton" onClick={() => void logout()} disabled={busyAction === 'logout'}>
+                {busyAction === 'logout' ? 'Refreshing...' : 'Reset session'}
+              </button>
+            </div>
+          </article>
+
+          <article className="panel compactPanel">
+            <div className="panelHeader">
+              <div>
+                <p className="panelLabel">Active site</p>
+                <h2>Primary context</h2>
+              </div>
+            </div>
+            {activeSite ? (
+              <div className="sessionCard">
+                <strong>{activeSite.name}</strong>
+                <p>{activeSite.location}</p>
+                <span className={activeSite.health === 'healthy' ? 'statusPill live' : activeSite.health === 'watch' ? 'statusPill warning' : 'statusPill danger'}>
+                  {activeSite.health}
+                </span>
+                <small>{activeSite.activeServices} services • PTP {activeSite.ptpOffsetNs} ns</small>
+              </div>
+            ) : (
+              <p className="trainingText">Waiting for site data.</p>
+            )}
+          </article>
+
+          <article className="panel compactPanel">
+            <div className="panelHeader">
+              <div>
+                <p className="panelLabel">Event stream</p>
+                <h2>Live enterprise audit</h2>
+              </div>
+            </div>
+            <div className="eventList">
+              {snapshot?.events.map((event) => (
+                <div key={event.id} className="eventRow">
+                  <span>{event.time}</span>
+                  <div>
+                    <strong>{event.title}</strong>
+                    <p>{event.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          {workspace === 'engineer' && snapshot ? (
             <article className="panel compactPanel">
               <div className="panelHeader">
                 <div>
-                  <p className="panelLabel">Legacy control</p>
-                  <h2>GPI / GPIO bridge</h2>
+                  <p className="panelLabel">GPIO bridge</p>
+                  <h2>Legacy control</h2>
                 </div>
               </div>
               <div className="alertList">
-                {snapshot?.gpioPorts.map((port) => (
+                {snapshot.gpioPorts.map((port) => (
                   <article key={port.id} className="alertCard info">
                     <div>
                       <strong>{port.port}</strong>
@@ -397,68 +557,19 @@ export default function NexusProductPage() {
                 ))}
               </div>
             </article>
+          ) : null}
+        </aside>
+      </section>
 
-            <article className="panel compactPanel">
-              <div className="panelHeader">
-                <div>
-                  <p className="panelLabel">Engineering posture</p>
-                  <h2>Quick summary</h2>
-                </div>
-              </div>
-              <ul className="trainingList">
-                <li>{derived?.degradedEquipment ?? 0} equipment records are degraded or offline.</li>
-                <li>{snapshot?.metrics.gpioActive ?? 0} GPIO ports are currently active.</li>
-                <li>{snapshot?.metrics.registeredNmosNodes ?? 0} NMOS nodes are visible to the registry.</li>
-                <li>Database-backed state is persisted locally for equipment, alerts, scenarios, GPIO, and audit events.</li>
-              </ul>
-            </article>
-          </aside>
+      {error ? (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <p className="trainingText">{error}</p>
         </section>
       ) : null}
 
-      {workspace === 'trainee' ? (
-        <section className="workspace" style={{ marginTop: 18 }}>
-          <div className="primaryColumn">
-            <article className="panel">
-              <div className="panelHeader">
-                <div>
-                  <p className="panelLabel">Trainee enablement</p>
-                  <h2>Structured learning inside the product</h2>
-                </div>
-              </div>
-              <div className="trainingGrid">
-                <article className="trainingCard">
-                  <h3>Operator learning path</h3>
-                  <p>Startup checks, route safety, live source switching, on-air incident containment, and shift handovers.</p>
-                </article>
-                <article className="trainingCard">
-                  <h3>Engineer learning path</h3>
-                  <p>Equipment discovery, NMOS understanding, monitoring interpretation, legacy GPIO integration, and platform troubleshooting.</p>
-                </article>
-                <article className="trainingCard">
-                  <h3>Scenario-based practice</h3>
-                  <p>Rehearse sports events, breaking news, and disaster recovery using the same product shell operators use live.</p>
-                </article>
-              </div>
-            </article>
-          </div>
-
-          <aside className="sideColumn">
-            <article className="panel compactPanel">
-              <div className="panelHeader">
-                <div>
-                  <p className="panelLabel">Training hub</p>
-                  <h2>Open full curriculum</h2>
-                </div>
-              </div>
-              <p className="trainingText">
-                The training section now acts as the trainee workspace for onboarding operators and engineers directly inside the product.
-              </p>
-              <Link href="/training" className="ghostButton activeToggle" style={{ marginTop: 16, display: 'inline-flex' }}>
-                Launch trainee modules
-              </Link>
-            </article>
-          </aside>
+      {loading ? (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <p className="trainingText">Loading enterprise product state...</p>
         </section>
       ) : null}
     </main>

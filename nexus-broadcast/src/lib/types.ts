@@ -13,6 +13,35 @@ export type EquipmentRecord = {
   lastSeen: string
 }
 
+export type UserRole = 'operator' | 'engineer' | 'trainee' | 'admin'
+
+export type UserRecord = {
+  id: number
+  name: string
+  email: string
+  role: UserRole
+  tenantId: number
+  siteId: number
+}
+
+export type TenantRecord = {
+  id: number
+  name: string
+  region: string
+  tier: 'Enterprise' | 'Broadcast Group' | 'Training'
+}
+
+export type SiteRecord = {
+  id: number
+  tenantId: number
+  name: string
+  location: string
+  mode: 'Production' | 'Backup' | 'Training'
+  health: 'healthy' | 'watch' | 'critical'
+  activeServices: number
+  ptpOffsetNs: number
+}
+
 export type NmosNodeRecord = {
   id: number
   label: string
@@ -21,6 +50,17 @@ export type NmosNodeRecord = {
   transport: string
   subscription: string
   status: 'registered' | 'warning' | 'missing'
+}
+
+export type ConnectorRecord = {
+  id: number
+  siteId: number
+  name: string
+  type: 'NMOS' | 'GPIO' | 'Router' | 'Replay' | 'Cloud' | 'Audio'
+  vendor: string
+  status: 'connected' | 'degraded' | 'offline'
+  protocol: string
+  lastSync: string
 }
 
 export type GpioRecord = {
@@ -66,12 +106,18 @@ export type EventRecord = {
 export type PlatformSnapshot = {
   generatedAt: string
   facilities: string[]
+  tenants: TenantRecord[]
+  sites: SiteRecord[]
+  users: UserRecord[]
+  connectors: ConnectorRecord[]
   metrics: {
     onAirServices: number
     activeIncidents: number
     registeredNmosNodes: number
     protectedFlows: number
     gpioActive: number
+    connectedSites: number
+    connectedConnectors: number
   }
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]
@@ -80,4 +126,12 @@ export type PlatformSnapshot = {
   scenarios: ScenarioRecord[]
   runbooks: RunbookRecord[]
   events: EventRecord[]
+}
+
+export type SessionRecord = {
+  name: string
+  email: string
+  role: UserRole
+  tenantId: number
+  siteId: number
 }

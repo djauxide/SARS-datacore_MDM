@@ -5,5 +5,6 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  return NextResponse.json(getPlatformSnapshot())
+  const snapshot = getPlatformSnapshot()
+  return NextResponse.json({ sites: snapshot.sites, tenants: snapshot.tenants })
 }

@@ -288,6 +288,7 @@ button {
 .simulationGrid,
 .feedGrid,
 .trainingGrid,
+.siteGrid,
 .routeList,
 .automationGrid,
 .alertList,
@@ -341,6 +342,7 @@ button {
 
 .feedGrid,
 .trainingGrid,
+.siteGrid,
 .deviceList,
 .automationGrid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -440,6 +442,17 @@ button {
   border-color: rgba(74, 210, 255, 0.22);
 }
 
+.badge.critical {
+  color: var(--danger);
+  background: rgba(255, 111, 127, 0.12);
+  border-color: rgba(255, 111, 127, 0.24);
+}
+
+.sessionCard {
+  display: grid;
+  gap: 10px;
+}
+
 .selectionBar,
 .routeCard,
 .deviceCard,
@@ -518,6 +531,7 @@ button {
   .kpiGrid,
   .feedGrid,
   .trainingGrid,
+  .siteGrid,
   .deviceList,
   .automationGrid,
   .simulationGrid,
