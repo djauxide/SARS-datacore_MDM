@@ -22,7 +22,7 @@ type PersistedState = {
 }
 
 const dataDir = path.join(process.cwd(), 'data')
-const dbPath = path.join(dataDir, 'platform-db.json')
+const dbPath = path.join(dataDir, 'platform-runtime.json')
 
 function nowIso() {
   return new Date().toISOString()
