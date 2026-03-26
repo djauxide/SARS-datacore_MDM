@@ -173,18 +173,17 @@ export default function NexusEnterprisePage() {
   const cameraShaders = useMemo(() => {
     if (!snapshot) return []
 
-    const baseCameras = [
-      { id: 'cam-1', name: 'Camera 1', shader: 'Vision', iris: 'F4.0', paint: 'Warm', tally: 'program' },
-      { id: 'cam-2', name: 'Camera 2', shader: 'Shade', iris: 'F2.8', paint: 'Neutral', tally: 'preview' },
-      { id: 'cam-3', name: 'Camera 3', shader: 'Remote', iris: 'F5.6', paint: 'Cool', tally: 'standby' },
-      { id: 'cam-4', name: 'Camera 4', shader: 'Remote', iris: 'F3.2', paint: 'Sport', tally: 'standby' },
-    ]
-
-    return baseCameras.map((camera, index) => ({
-      ...camera,
+    return snapshot.colorEngines.map((camera, index) => ({
+      id: `cam-${camera.id}`,
+      name: camera.camera,
+      shader: camera.shader,
+      iris: camera.iris,
+      paint: camera.paintProfile,
+      tally: index === 0 ? 'program' : index === 1 ? 'preview' : 'standby',
       venue: snapshot.obUnits[index % snapshot.obUnits.length]?.venue ?? 'Studio floor',
-      gain: `${Math.max(0, 3 + index * 2)} dB`,
-      white: `${3200 + index * 400} K`,
+      gain: `${camera.gainDb} dB`,
+      white: `${camera.whiteBalanceK} K`,
+      status: camera.status,
     }))
   }, [snapshot])
   const signalFlowColumns = useMemo(() => {
@@ -230,11 +229,14 @@ export default function NexusEnterprisePage() {
 
     return [
       { label: 'Video waveform', value: '709 legal', status: 'stable' },
-      { label: 'Vectorscope', value: 'Skin tone aligned', status: 'stable' },
-      { label: 'Loudness', value: '-23 LUFS', status: 'stable' },
-      { label: 'Audio peak', value: '-9 dBFS', status: snapshot.alerts.some((alert) => !alert.acknowledged && alert.severity === 'warning') ? 'watch' : 'stable' },
+      { label: 'Vectorscope', value: cameraShaders.some((camera) => camera.status === 'warning') ? 'Match drift' : 'Skin tone aligned', status: cameraShaders.some((camera) => camera.status === 'warning') ? 'watch' : 'stable' },
+      ...snapshot.audioMonitors.slice(0, 2).map((monitor) => ({
+        label: `${monitor.zone} loudness`,
+        value: `${monitor.loudnessLufs} LUFS`,
+        status: monitor.confidence === 'warning' ? 'watch' : 'stable',
+      })),
     ]
-  }, [snapshot])
+  }, [cameraShaders, snapshot])
 
   const runScenario = async (slug: string) => {
     setBusyAction(`scenario-${slug}`)
@@ -567,6 +569,7 @@ export default function NexusEnterprisePage() {
                                   <span>{camera.iris}</span>
                                   <span>{camera.white}</span>
                                   <span>{camera.gain}</span>
+                                  <span>{camera.paint}</span>
                                 </div>
                               </div>
                             ))}
@@ -586,6 +589,28 @@ export default function NexusEnterprisePage() {
                                   <small>{metric.status}</small>
                                 </div>
                                 <span className={metric.status === 'watch' ? 'badge warning' : 'badge live'}>{metric.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </article>
+
+                        <article className="railPanel">
+                          <div className="sectionMiniHeader">
+                            <span>Legacy SDI bridge</span>
+                            <small>SDI to IP interop</small>
+                          </div>
+                          <div className="railList">
+                            {snapshot.sdiBridges.map((bridge) => (
+                              <div key={bridge.id} className="railRow">
+                                <div>
+                                  <strong>{bridge.name}</strong>
+                                  <small>
+                                    {bridge.mode} • {bridge.ioCount}
+                                  </small>
+                                </div>
+                                <span className={bridge.status === 'online' ? 'badge live' : bridge.status === 'degraded' ? 'badge warning' : 'badge critical'}>
+                                  {bridge.reference}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -1130,6 +1155,58 @@ export default function NexusEnterprisePage() {
                       </div>
                     </article>
                   ))}
+                </div>
+              </article>
+
+              <article className="panel">
+                <div className="panelHeader">
+                  <div>
+                    <p className="panelLabel">Production monitoring</p>
+                    <h2>Color shading, audio confidence, and SDI bridge health</h2>
+                  </div>
+                </div>
+                <div className="manufacturerGrid">
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">color</span>
+                      <small>camera shading and paint</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.colorEngines.map((engine) => (
+                        <small key={engine.id}>
+                          {engine.camera} • {engine.paintProfile} • {engine.whiteBalanceK}K • {engine.gainDb} dB
+                        </small>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">audio</span>
+                      <small>loudness and phase</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.audioMonitors.map((monitor) => (
+                        <small key={monitor.id}>
+                          {monitor.zone} • {monitor.loudnessLufs} LUFS • {monitor.peakDbfs} dBFS • {monitor.phase}
+                        </small>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="manufacturerCard">
+                    <div className="trainingCardHeader">
+                      <span className="badge standby">bridge</span>
+                      <small>legacy SDI integration</small>
+                    </div>
+                    <div className="trainingMeta">
+                      {snapshot.sdiBridges.map((bridge) => (
+                        <small key={bridge.id}>
+                          {bridge.name} • {bridge.mode} • {bridge.ioCount} • {bridge.reference}
+                        </small>
+                      ))}
+                    </div>
+                  </article>
                 </div>
               </article>
 

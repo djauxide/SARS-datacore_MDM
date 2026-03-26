@@ -1,6 +1,7 @@
 import type {
   AlertRecord,
   ConnectorRecord,
+  ColorEngineRecord,
   EquipmentRecord,
   EventRecord,
   GpioRecord,
@@ -14,6 +15,7 @@ import type {
   ReceiverRecord,
   RouteRecord,
   RunbookRecord,
+  SdiBridgeRecord,
   ScenarioRecord,
   SenderRecord,
   SiteRecord,
@@ -21,6 +23,7 @@ import type {
   UserRecord,
   VirtualStudioRecord,
   WorkflowRecord,
+  AudioMonitorRecord,
 } from './types'
 import { executeConnectorAction, type AdapterAction } from './adapters'
 import { createStore } from './store'
@@ -48,6 +51,9 @@ type PersistedState = {
   events: EventRecord[]
   productions: ProductionSetupRecord[]
   activeProductionId?: number
+  colorEngines: ColorEngineRecord[]
+  audioMonitors: AudioMonitorRecord[]
+  sdiBridges: SdiBridgeRecord[]
 }
 
 function nowIso() {
@@ -146,6 +152,8 @@ function seedState(): PersistedState {
       { id: 4, siteId: 102, name: 'Lawo Audio Core', type: 'Audio', vendor: 'Lawo', status: 'connected', protocol: 'AES67 + Ember+', lastSync: seen },
       { id: 5, siteId: 101, name: 'Cloud Burst Control', type: 'Cloud', vendor: 'Nexus', status: 'connected', protocol: 'HTTPS + WebSocket', lastSync: seen },
       { id: 6, siteId: 101, name: 'Legacy GPIO Rack', type: 'GPIO', vendor: 'Nexus', status: 'connected', protocol: 'GPI/GPO', lastSync: seen },
+      { id: 7, siteId: 101, name: 'Legacy SDI Bridge', type: 'Bridge', vendor: 'Nexus', status: 'connected', protocol: '12G-SDI / ST 2110', lastSync: seen },
+      { id: 8, siteId: 101, name: 'Scope and Loudness Core', type: 'Monitoring', vendor: 'Nexus', status: 'connected', protocol: 'Waveform / Vectorscope / LUFS', lastSync: seen },
     ],
     routes: [
       { id: 1, source: 'Studio 1 Program', destination: 'Cloud Switcher A', siteId: 101, controller: 'Nexus Router Bridge', transport: 'ST 2110-20', state: 'active', protected: true },
@@ -224,6 +232,21 @@ function seedState(): PersistedState {
       { id: 2, name: 'Remote Event MCR', playout: 'Nexus Channel Engine', ingest: 'SRT Edge Ingest', compliance: 'Delay + QC', distribution: 'Digital + Social', status: 'ready', activeStudioId: 2 },
       { id: 3, name: 'Backup MCR', playout: 'Disaster Playout', ingest: 'Backup Fiber Ingest', compliance: 'Safe Output', distribution: 'Disaster Recovery', status: 'switching' },
     ],
+    colorEngines: [
+      { id: 1, camera: 'Camera 1', shader: 'Vision 1', paintProfile: 'Match Day Neutral', iris: 'F4.0', whiteBalanceK: 5600, gainDb: 3, status: 'aligned' },
+      { id: 2, camera: 'Camera 2', shader: 'Vision 2', paintProfile: 'Studio Cool', iris: 'F2.8', whiteBalanceK: 5200, gainDb: 1, status: 'adjusting' },
+      { id: 3, camera: 'Camera 3', shader: 'Remote Shade', paintProfile: 'Concert Saturated', iris: 'F5.6', whiteBalanceK: 4300, gainDb: 5, status: 'warning' },
+    ],
+    audioMonitors: [
+      { id: 1, zone: 'Program', source: 'Main mix', loudnessLufs: -23.1, peakDbfs: -8.7, phase: 'in-phase', confidence: 'stable' },
+      { id: 2, zone: 'Commentary', source: 'Commentary A', loudnessLufs: -19.8, peakDbfs: -6.1, phase: 'watch', confidence: 'warning' },
+      { id: 3, zone: 'MCR QC', source: 'Distribution confidence', loudnessLufs: -22.7, peakDbfs: -9.3, phase: 'in-phase', confidence: 'stable' },
+    ],
+    sdiBridges: [
+      { id: 1, name: 'Bridge JHB-01', siteId: 101, mode: 'SDI-IP', ioCount: '32x32', reference: 'PTP', status: 'online' },
+      { id: 2, name: 'Bridge CPT-Edge', siteId: 102, mode: 'hybrid', ioCount: '16x16', reference: 'Tri-level', status: 'online' },
+      { id: 3, name: 'Bridge Legacy MCR', siteId: 103, mode: 'IP-SDI', ioCount: '8x8', reference: 'Black Burst', status: 'degraded' },
+    ],
     productions: [
       {
         id: 1,
@@ -239,7 +262,7 @@ function seedState(): PersistedState {
         graphicsProfile: 'Sports lower thirds and scorebug',
         redundancy: 'protected',
         primaryRouteIds: [1, 2],
-        connectorIds: [1, 2, 4, 5, 6],
+        connectorIds: [1, 2, 4, 5, 6, 7, 8],
         notes: 'Main OB match workflow with cloud backup gallery.',
       },
       {
@@ -256,7 +279,7 @@ function seedState(): PersistedState {
         graphicsProfile: 'Breaking and lower-third package',
         redundancy: 'protected',
         primaryRouteIds: [3, 4],
-        connectorIds: [1, 4, 5, 6],
+        connectorIds: [1, 4, 5, 6, 7, 8],
         notes: 'Fast switching between studio, remote guest, and branded outputs.',
       },
       {
@@ -273,7 +296,7 @@ function seedState(): PersistedState {
         graphicsProfile: 'Event branding and sponsor loop',
         redundancy: 'dual-site',
         primaryRouteIds: [2, 4],
-        connectorIds: [1, 3, 5, 6],
+        connectorIds: [1, 3, 5, 6, 7, 8],
         notes: 'Draft remote entertainment build with dual-site recovery.',
       },
     ],
@@ -310,6 +333,9 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     events: raw.events ?? seeded.events,
     productions: raw.productions ?? seeded.productions,
     activeProductionId: raw.activeProductionId ?? seeded.activeProductionId,
+    colorEngines: raw.colorEngines ?? seeded.colorEngines,
+    audioMonitors: raw.audioMonitors ?? seeded.audioMonitors,
+    sdiBridges: raw.sdiBridges ?? seeded.sdiBridges,
   }
 
   normalizeBranding(state)
@@ -368,6 +394,19 @@ function refreshTelemetry(state: PersistedState) {
     ...studio,
     operatorCount: Math.max(1, studio.operatorCount + ((index % 2 === 0) ? 1 : -1)),
   }))
+
+  state.colorEngines = state.colorEngines.map((engine, index) => ({
+    ...engine,
+    gainDb: Math.max(0, Math.min(12, engine.gainDb + (index % 2 === 0 ? 1 : -1))),
+    status: engine.gainDb > 4 ? 'warning' : index % 2 === 0 ? 'aligned' : engine.status,
+  }))
+
+  state.audioMonitors = state.audioMonitors.map((monitor, index) => {
+    const loudnessLufs = Number((monitor.loudnessLufs + (index % 2 === 0 ? 0.1 : -0.1)).toFixed(1))
+    const peakDbfs = Number((monitor.peakDbfs + (index % 2 === 0 ? -0.2 : 0.2)).toFixed(1))
+    const confidence = loudnessLufs > -20.0 || peakDbfs > -6.0 ? 'warning' : 'stable'
+    return { ...monitor, loudnessLufs, peakDbfs, confidence }
+  })
 }
 
 export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
@@ -411,6 +450,9 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
     events: state.events,
     productions: state.productions,
     activeProductionId: state.activeProductionId,
+    colorEngines: state.colorEngines,
+    audioMonitors: state.audioMonitors,
+    sdiBridges: state.sdiBridges,
   }
 }
 

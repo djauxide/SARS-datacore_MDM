@@ -65,7 +65,7 @@ export type ConnectorRecord = {
   id: number
   siteId: number
   name: string
-  type: 'NMOS' | 'GPIO' | 'Router' | 'Replay' | 'Cloud' | 'Audio'
+  type: 'NMOS' | 'GPIO' | 'Router' | 'Replay' | 'Cloud' | 'Audio' | 'Bridge' | 'Monitoring'
   vendor: string
   status: 'connected' | 'degraded' | 'offline'
   protocol: string
@@ -198,6 +198,37 @@ export type EventRecord = {
   detail: string
 }
 
+export type ColorEngineRecord = {
+  id: number
+  camera: string
+  shader: string
+  paintProfile: string
+  iris: string
+  whiteBalanceK: number
+  gainDb: number
+  status: 'aligned' | 'adjusting' | 'warning'
+}
+
+export type AudioMonitorRecord = {
+  id: number
+  zone: string
+  source: string
+  loudnessLufs: number
+  peakDbfs: number
+  phase: 'in-phase' | 'watch'
+  confidence: 'stable' | 'warning'
+}
+
+export type SdiBridgeRecord = {
+  id: number
+  name: string
+  siteId: number
+  mode: 'SDI-IP' | 'IP-SDI' | 'hybrid'
+  ioCount: string
+  reference: 'PTP' | 'Black Burst' | 'Tri-level'
+  status: 'online' | 'degraded' | 'offline'
+}
+
 export type ProductionSetupRecord = {
   id: number
   name: string
@@ -252,6 +283,9 @@ export type PlatformSnapshot = {
   events: EventRecord[]
   productions: ProductionSetupRecord[]
   activeProductionId?: number
+  colorEngines: ColorEngineRecord[]
+  audioMonitors: AudioMonitorRecord[]
+  sdiBridges: SdiBridgeRecord[]
 }
 
 export type SessionRecord = {

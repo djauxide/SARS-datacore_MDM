@@ -71,6 +71,14 @@ const adapters: Record<ConnectorRecord['type'], ConnectorAdapter> = {
     supports: (action) => ['switch-route', 'sync', 'connect'].includes(action),
     execute: (connector, action, payload) => callEndpoint(connector, action, payload),
   },
+  Bridge: {
+    supports: (action) => ['sync', 'connect', 'disconnect', 'switch-route'].includes(action),
+    execute: (connector, action, payload) => callEndpoint(connector, action, payload),
+  },
+  Monitoring: {
+    supports: (action) => ['sync', 'connect', 'run-workflow'].includes(action),
+    execute: (connector, action, payload) => callEndpoint(connector, action, payload),
+  },
 }
 
 export async function executeConnectorAction(
