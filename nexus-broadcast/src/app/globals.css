@@ -527,6 +527,319 @@ button {
   min-width: 72px;
 }
 
+.controlCanvas {
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #080c14 0%, #0b111b 100%);
+}
+
+.canvasTopbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.canvasBrand,
+.canvasMeta,
+.canvasTabs,
+.railMeta,
+.healthLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.canvasBrand strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.canvasBrand small,
+.canvasSidebarLabel,
+.flowLabel,
+.mosaicLabel small,
+.healthLine small,
+.railRow small {
+  color: var(--muted);
+}
+
+.canvasMark {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(74, 210, 255, 0.14);
+  border: 1px solid rgba(74, 210, 255, 0.24);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.canvasTabs {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.canvasTab,
+.canvasSidebarItem {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+}
+
+.canvasTab {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.canvasTab.active,
+.canvasSidebarItem.active {
+  color: var(--accent);
+  border-color: rgba(74, 210, 255, 0.32);
+  background: rgba(74, 210, 255, 0.1);
+}
+
+.canvasBody {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  min-height: 760px;
+}
+
+.canvasSidebar {
+  padding: 14px 10px;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.canvasSidebarSection + .canvasSidebarSection {
+  margin-top: 18px;
+}
+
+.canvasSidebarLabel,
+.flowLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.canvasSidebarItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.canvasSidebarItem + .canvasSidebarItem {
+  margin-top: 6px;
+}
+
+.healthLine {
+  margin-bottom: 8px;
+}
+
+.canvasWorkspace {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.signalFlowStrip {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.signalFlowMap {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.flowColumn {
+  position: relative;
+}
+
+.flowColumn:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -8px;
+  width: 16px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.08), rgba(74, 210, 255, 0.28));
+}
+
+.flowNode {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.flowNode + .flowNode {
+  margin-top: 8px;
+}
+
+.flowNode small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.flowNode.active {
+  border-color: rgba(86, 240, 169, 0.24);
+  color: var(--success);
+}
+
+.flowNode.warning {
+  border-color: rgba(255, 180, 74, 0.24);
+  color: var(--warning);
+}
+
+.flowNode.cloud {
+  border-color: rgba(74, 210, 255, 0.24);
+  color: var(--accent);
+}
+
+.flowNode.processing {
+  border-color: rgba(213, 128, 255, 0.24);
+  color: #d580ff;
+}
+
+.canvasLower {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) 320px;
+  min-height: 0;
+}
+
+.mosaicPanel {
+  padding: 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.mosaicGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: #030507;
+  border-radius: 16px;
+  min-height: 460px;
+}
+
+.mosaicTile {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 180px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0a1018;
+}
+
+.mosaicTile.program {
+  border-color: rgba(255, 111, 127, 0.42);
+}
+
+.mosaicTile.preview {
+  border-color: rgba(86, 240, 169, 0.32);
+}
+
+.mosaicTile.warning {
+  border-color: rgba(255, 180, 74, 0.32);
+}
+
+.mosaicPreview {
+  display: grid;
+  align-content: end;
+  gap: 8px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at center, rgba(74, 210, 255, 0.08), transparent 45%),
+    linear-gradient(180deg, rgba(27, 37, 56, 0.96), rgba(7, 10, 14, 0.98));
+}
+
+.mosaicPreview span,
+.mosaicLabel span {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mosaicPreview strong {
+  font-size: 0.96rem;
+}
+
+.mosaicLabel {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.canvasControlRail {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.railPanel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.railList {
+  display: grid;
+  gap: 10px;
+}
+
+.railRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.railRow:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.railRow strong {
+  display: block;
+}
+
+.railMeta {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.railMeta span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.68rem;
+}
+
 .productionSurface {
   background:
     linear-gradient(180deg, rgba(8, 12, 22, 0.96), rgba(12, 20, 36, 0.96)),
@@ -771,7 +1084,10 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .canvasBody,
   .productionGrid,
+  .canvasLower,
+  .signalFlowMap,
   .manufacturerGrid,
   .multiviewGrid {
     grid-template-columns: 1fr;
@@ -804,6 +1120,7 @@ button {
 
   .panelHeader,
   .productionTopbar,
+  .canvasTopbar,
   .selectionBar,
   .routeCard,
   .deviceCard,
@@ -812,8 +1129,14 @@ button {
   .complianceRow,
   .eventRow,
   .busRow,
-  .consoleRow {
+  .consoleRow,
+  .railRow {
     flex-direction: column;
+  }
+
+  .canvasTabs,
+  .canvasMeta {
+    justify-content: flex-start;
   }
 
   .buttonRow {

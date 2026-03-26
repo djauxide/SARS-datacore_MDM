@@ -166,6 +166,71 @@ export default function NexusEnterprisePage() {
       })),
     ].slice(0, 9)
   }, [snapshot])
+  const cameraShaders = useMemo(() => {
+    if (!snapshot) return []
+
+    const baseCameras = [
+      { id: 'cam-1', name: 'Camera 1', shader: 'Vision', iris: 'F4.0', paint: 'Warm', tally: 'program' },
+      { id: 'cam-2', name: 'Camera 2', shader: 'Shade', iris: 'F2.8', paint: 'Neutral', tally: 'preview' },
+      { id: 'cam-3', name: 'Camera 3', shader: 'Remote', iris: 'F5.6', paint: 'Cool', tally: 'standby' },
+      { id: 'cam-4', name: 'Camera 4', shader: 'Remote', iris: 'F3.2', paint: 'Sport', tally: 'standby' },
+    ]
+
+    return baseCameras.map((camera, index) => ({
+      ...camera,
+      venue: snapshot.obUnits[index % snapshot.obUnits.length]?.venue ?? 'Studio floor',
+      gain: `${Math.max(0, 3 + index * 2)} dB`,
+      white: `${3200 + index * 400} K`,
+    }))
+  }, [snapshot])
+  const signalFlowColumns = useMemo(() => {
+    if (!snapshot) return []
+
+    return [
+      {
+        label: 'Sources',
+        nodes: [
+          { label: 'Cameras', detail: `${cameraShaders.length} live`, tone: 'active' },
+          { label: 'Replay', detail: snapshot.connectors.find((connector) => connector.type === 'Replay')?.name ?? 'Offline', tone: 'warning' },
+          { label: 'OB Feeds', detail: `${snapshot.obUnits.length} units`, tone: 'cloud' },
+        ],
+      },
+      {
+        label: 'Core',
+        nodes: [
+          { label: 'Router', detail: `${snapshot.routes.length} paths`, tone: 'active' },
+          { label: 'Audio Core', detail: 'AES67 / ST 2110-30', tone: 'processing' },
+          { label: 'Multiview', detail: `${multiviewTiles.length} windows`, tone: 'active' },
+        ],
+      },
+      {
+        label: 'Control',
+        nodes: [
+          { label: 'Switcher', detail: activeRoute?.source ?? 'Awaiting source', tone: 'processing' },
+          { label: 'Shading', detail: `${cameraShaders.length} cameras`, tone: 'warning' },
+          { label: 'SLM / Color', detail: 'Scopes armed', tone: 'cloud' },
+        ],
+      },
+      {
+        label: 'Destinations',
+        nodes: [
+          { label: 'Studio', detail: liveStudio?.name ?? 'Standby', tone: 'active' },
+          { label: 'MCR', detail: activeMcr?.name ?? 'Standby chain', tone: 'active' },
+          { label: 'Distribution', detail: activeMcr?.distribution ?? 'Monitoring only', tone: 'cloud' },
+        ],
+      },
+    ]
+  }, [activeMcr, activeRoute, cameraShaders, liveStudio, multiviewTiles.length, snapshot])
+  const avMonitoring = useMemo(() => {
+    if (!snapshot) return []
+
+    return [
+      { label: 'Video waveform', value: '709 legal', status: 'stable' },
+      { label: 'Vectorscope', value: 'Skin tone aligned', status: 'stable' },
+      { label: 'Loudness', value: '-23 LUFS', status: 'stable' },
+      { label: 'Audio peak', value: '-9 dBFS', status: snapshot.alerts.some((alert) => !alert.acknowledged && alert.severity === 'warning') ? 'watch' : 'stable' },
+    ]
+  }, [snapshot])
 
   const runScenario = async (slug: string) => {
     setBusyAction(`scenario-${slug}`)
@@ -365,6 +430,172 @@ export default function NexusEnterprisePage() {
 
           {workspace === 'operator' && snapshot ? (
             <>
+              <article className="panel controlCanvas">
+                <div className="canvasTopbar">
+                  <div className="canvasBrand">
+                    <span className="canvasMark">NO</span>
+                    <div>
+                      <strong>Nexus Orchestrate</strong>
+                      <small>Production workflow canvas</small>
+                    </div>
+                  </div>
+                  <div className="canvasTabs">
+                    <span className="canvasTab active">Live</span>
+                    <span className="canvasTab">Routing</span>
+                    <span className="canvasTab">Shading</span>
+                    <span className="canvasTab">Monitoring</span>
+                  </div>
+                  <div className="canvasMeta">
+                    <span className="statusPill live">ptp locked</span>
+                    <span className="statusPill subtle">{productionClock} SAST</span>
+                  </div>
+                </div>
+
+                <div className="canvasBody">
+                  <aside className="canvasSidebar">
+                    <div className="canvasSidebarSection">
+                      <span className="canvasSidebarLabel">Control modes</span>
+                      <button type="button" className="canvasSidebarItem active">Mosaic multiview</button>
+                      <button type="button" className="canvasSidebarItem">Virtual switcher</button>
+                      <button type="button" className="canvasSidebarItem">Camera shading</button>
+                      <button type="button" className="canvasSidebarItem">Audio and video QC</button>
+                      <button type="button" className="canvasSidebarItem">MCR continuity</button>
+                    </div>
+                    <div className="canvasSidebarSection">
+                      <span className="canvasSidebarLabel">Health</span>
+                      {snapshot.connectors.slice(0, 4).map((connector) => (
+                        <div key={connector.id} className="healthLine">
+                          <span className={connector.status === 'connected' ? 'healthDot online' : connector.status === 'degraded' ? 'healthDot degraded' : 'healthDot offline'} />
+                          <small>{connector.name}</small>
+                        </div>
+                      ))}
+                    </div>
+                  </aside>
+
+                  <div className="canvasWorkspace">
+                    <section className="signalFlowStrip">
+                      <div className="sectionMiniHeader">
+                        <span>End-to-end workflow</span>
+                        <small>Source to control to distribution</small>
+                      </div>
+                      <div className="signalFlowMap">
+                        {signalFlowColumns.map((column) => (
+                          <div key={column.label} className="flowColumn">
+                            <span className="flowLabel">{column.label}</span>
+                            {column.nodes.map((node) => (
+                              <div key={node.label} className={`flowNode ${node.tone}`}>
+                                {node.label}
+                                <small>{node.detail}</small>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    <div className="canvasLower">
+                      <section className="mosaicPanel">
+                        <div className="sectionMiniHeader">
+                          <span>Mosaic multiviewer</span>
+                          <small>4 x 2 layout</small>
+                        </div>
+                        <div className="mosaicGrid">
+                          {multiviewTiles.slice(0, 8).map((tile) => (
+                            <article
+                              key={`mosaic-${tile.id}`}
+                              className={`mosaicTile ${tile.status === 'active' || tile.status === 'live' || tile.status === 'on-air' ? 'program' : tile.status === 'standby' || tile.status === 'ready' ? 'preview' : 'warning'}`}
+                            >
+                              <div className="mosaicPreview">
+                                <span>{tile.meta}</span>
+                                <strong>{tile.label}</strong>
+                              </div>
+                              <div className="mosaicLabel">
+                                <small>{tile.detail}</small>
+                                <span>{tile.status}</span>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
+
+                      <aside className="canvasControlRail">
+                        <article className="railPanel">
+                          <div className="sectionMiniHeader">
+                            <span>Camera shading</span>
+                            <small>SLM and color</small>
+                          </div>
+                          <div className="railList">
+                            {cameraShaders.map((camera) => (
+                              <div key={camera.id} className="railRow">
+                                <div>
+                                  <strong>{camera.name}</strong>
+                                  <small>
+                                    {camera.venue} • {camera.shader}
+                                  </small>
+                                </div>
+                                <div className="railMeta">
+                                  <span>{camera.iris}</span>
+                                  <span>{camera.white}</span>
+                                  <span>{camera.gain}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </article>
+
+                        <article className="railPanel">
+                          <div className="sectionMiniHeader">
+                            <span>AV monitoring</span>
+                            <small>Audio and video confidence</small>
+                          </div>
+                          <div className="railList">
+                            {avMonitoring.map((metric) => (
+                              <div key={metric.label} className="railRow">
+                                <div>
+                                  <strong>{metric.label}</strong>
+                                  <small>{metric.status}</small>
+                                </div>
+                                <span className={metric.status === 'watch' ? 'badge warning' : 'badge live'}>{metric.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </article>
+
+                        <article className="railPanel">
+                          <div className="sectionMiniHeader">
+                            <span>Virtual consoles</span>
+                            <small>Control panels</small>
+                          </div>
+                          <div className="railList">
+                            <div className="railRow">
+                              <div>
+                                <strong>Vision mixer</strong>
+                                <small>{activeRoute?.source ?? 'Idle bus'}</small>
+                              </div>
+                              <button type="button" className="tinyButton protected">armed</button>
+                            </div>
+                            <div className="railRow">
+                              <div>
+                                <strong>Audio panel</strong>
+                                <small>AES67 monitor path</small>
+                              </div>
+                              <button type="button" className="tinyButton">listen</button>
+                            </div>
+                            <div className="railRow">
+                              <div>
+                                <strong>MCR continuity</strong>
+                                <small>{activeMcr?.name ?? 'Backup ready'}</small>
+                              </div>
+                              <button type="button" className="tinyButton">protect</button>
+                            </div>
+                          </div>
+                        </article>
+                      </aside>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
               <article className="panel productionSurface">
                 <div className="productionTopbar">
                   <div>
