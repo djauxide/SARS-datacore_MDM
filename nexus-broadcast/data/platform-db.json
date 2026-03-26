@@ -1,0 +1,241 @@
+{
+  "equipment": [
+    {
+      "id": 1,
+      "name": "JHB Core Router",
+      "vendor": "Nexus",
+      "model": "NXR-128",
+      "role": "Video Router",
+      "facility": "Johannesburg",
+      "status": "degraded",
+      "protocols": [
+        "ST 2110",
+        "NMOS IS-05",
+        "GPIO"
+      ],
+      "cpuLoad": 93,
+      "temperature": 28,
+      "latencyMs": 32,
+      "lastSeen": "2026-03-26T14:01:19.002Z"
+    },
+    {
+      "id": 2,
+      "name": "Cape Town Multiview",
+      "vendor": "Nexus",
+      "model": "MV-16",
+      "role": "Multiviewer",
+      "facility": "Cape Town",
+      "status": "online",
+      "protocols": [
+        "ST 2110",
+        "WebRTC"
+      ],
+      "cpuLoad": 12,
+      "temperature": 51,
+      "latencyMs": 2,
+      "lastSeen": "2026-03-26T14:01:19.002Z"
+    },
+    {
+      "id": 3,
+      "name": "Neuron Bridge 01",
+      "vendor": "EVS",
+      "model": "Neuron",
+      "role": "Gateway",
+      "facility": "Nairobi",
+      "status": "degraded",
+      "protocols": [
+        "ST 2022-7",
+        "SRT",
+        "NMOS IS-04"
+      ],
+      "cpuLoad": 93,
+      "temperature": 70,
+      "latencyMs": 32,
+      "lastSeen": "2026-03-26T14:01:19.002Z"
+    },
+    {
+      "id": 4,
+      "name": "Legacy GPIO Rack",
+      "vendor": "Grass Valley",
+      "model": "Encore GPIO",
+      "role": "Legacy Interface",
+      "facility": "Johannesburg",
+      "status": "online",
+      "protocols": [
+        "GPI",
+        "GPO",
+        "RS-422"
+      ],
+      "cpuLoad": 12,
+      "temperature": 28,
+      "latencyMs": 2,
+      "lastSeen": "2026-03-26T14:01:19.002Z"
+    },
+    {
+      "id": 5,
+      "name": "AMPP Burst Pod",
+      "vendor": "GV",
+      "model": "AMPP Edge",
+      "role": "Cloud Production Pod",
+      "facility": "AWS eu-west-2",
+      "status": "degraded",
+      "protocols": [
+        "ST 2110-22",
+        "NMOS IS-04",
+        "HTTPS"
+      ],
+      "cpuLoad": 93,
+      "temperature": 42,
+      "latencyMs": 32,
+      "lastSeen": "2026-03-26T14:01:19.002Z"
+    }
+  ],
+  "nmosNodes": [
+    {
+      "id": 1,
+      "label": "Studio 1 Program Sender",
+      "nodeId": "node-jhb-program",
+      "kind": "sender",
+      "transport": "urn:x-nmos:transport:rtp",
+      "subscription": "Program / Cloud Switcher",
+      "status": "registered"
+    },
+    {
+      "id": 2,
+      "label": "Contribution Feed Receiver",
+      "nodeId": "node-cpt-receiver",
+      "kind": "receiver",
+      "transport": "urn:x-nmos:transport:srt",
+      "subscription": "Contribution / Cape Town",
+      "status": "registered"
+    },
+    {
+      "id": 3,
+      "label": "Legacy Tally Bridge",
+      "nodeId": "node-gpio-tally",
+      "kind": "node",
+      "transport": "urn:x-nmos:transport:dash",
+      "subscription": "GPIO / Tally",
+      "status": "warning"
+    },
+    {
+      "id": 4,
+      "label": "FAST Channel Sender",
+      "nodeId": "node-fast-output",
+      "kind": "sender",
+      "transport": "urn:x-nmos:transport:websocket",
+      "subscription": "FAST / OTT",
+      "status": "registered"
+    }
+  ],
+  "gpioPorts": [
+    {
+      "id": 1,
+      "port": "GPI-01",
+      "label": "Studio Red Button",
+      "direction": "GPI",
+      "state": 0,
+      "deviceName": "Legacy GPIO Rack"
+    },
+    {
+      "id": 2,
+      "port": "GPI-02",
+      "label": "Fire Alarm Interlock",
+      "direction": "GPI",
+      "state": 0,
+      "deviceName": "Legacy GPIO Rack"
+    },
+    {
+      "id": 3,
+      "port": "GPO-01",
+      "label": "On Air Tally",
+      "direction": "GPO",
+      "state": 1,
+      "deviceName": "Legacy GPIO Rack"
+    },
+    {
+      "id": 4,
+      "port": "GPO-02",
+      "label": "Backup Router Trigger",
+      "direction": "GPO",
+      "state": 0,
+      "deviceName": "Legacy GPIO Rack"
+    }
+  ],
+  "alerts": [
+    {
+      "id": 1,
+      "title": "Nairobi gateway experiencing elevated jitter",
+      "detail": "Failover is armed but contribution latency is above baseline.",
+      "severity": "warning",
+      "acknowledged": false
+    },
+    {
+      "id": 2,
+      "title": "Single NMOS subscription needs review",
+      "detail": "Legacy Tally Bridge is registered but transport mapping is incomplete.",
+      "severity": "info",
+      "acknowledged": false
+    }
+  ],
+  "scenarios": [
+    {
+      "id": 1,
+      "slug": "champions-league",
+      "name": "Major Sports Event",
+      "description": "High-density live event with multiple commentary and contribution paths.",
+      "status": "ready"
+    },
+    {
+      "id": 2,
+      "slug": "breaking-news",
+      "name": "Breaking News Cut-in",
+      "description": "Rapid route changes with fast tally and automated cloud gallery spin-up.",
+      "status": "ready"
+    },
+    {
+      "id": 3,
+      "slug": "disaster-recovery",
+      "name": "Disaster Recovery",
+      "description": "Primary fabric impairment with backup path promotion and GPIO triggers.",
+      "status": "ready"
+    }
+  ],
+  "runbooks": [
+    {
+      "id": 1,
+      "name": "Auto Failover",
+      "purpose": "Promote protected paths and backup encoders.",
+      "eta": "< 4 sec",
+      "state": "idle"
+    },
+    {
+      "id": 2,
+      "name": "Cloud Gallery Spin-up",
+      "purpose": "Create extra operator and replay capacity.",
+      "eta": "90 sec",
+      "state": "idle"
+    },
+    {
+      "id": 3,
+      "name": "Legacy Tally Sync",
+      "purpose": "Align GPIO tally and program bus status.",
+      "eta": "12 sec",
+      "state": "complete"
+    }
+  ],
+  "events": [
+    {
+      "id": 1,
+      "time": "14:54:48",
+      "title": "Product datastore initialized",
+      "detail": "Nexus seeded equipment, discovery, GPIO, and scenario state."
+    },
+    {
+      "id": 2,
+      "time": "14:54:48",
+      "title": "NMOS registry linked",
+      "detail": "Initial simulated device registration completed."
+    }
+  ]
+}
