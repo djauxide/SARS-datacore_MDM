@@ -1,0 +1,516 @@
+:root {
+  --bg: #07111f;
+  --bg-alt: #0d1a2e;
+  --panel: rgba(11, 24, 45, 0.88);
+  --panel-strong: #132746;
+  --border: rgba(146, 183, 255, 0.16);
+  --text: #ebf3ff;
+  --muted: #9bb0d1;
+  --accent: #4ad2ff;
+  --accent-soft: rgba(74, 210, 255, 0.14);
+  --success: #56f0a9;
+  --warning: #ffb44a;
+  --danger: #ff6f7f;
+  --shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(74, 210, 255, 0.18), transparent 32%),
+    radial-gradient(circle at top right, rgba(86, 240, 169, 0.14), transparent 24%),
+    linear-gradient(180deg, #040913 0%, #07111f 100%);
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+.shell {
+  width: min(1400px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+.hero,
+.panel,
+.kpiCard,
+.tab {
+  backdrop-filter: blur(18px);
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(20, 43, 78, 0.92), rgba(7, 17, 31, 0.9));
+  box-shadow: var(--shadow);
+}
+
+.eyebrow,
+.panelLabel {
+  margin: 0 0 8px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+}
+
+.hero h1,
+.panel h2 {
+  margin: 0;
+}
+
+.hero h1 {
+  max-width: 760px;
+  font-size: clamp(2.2rem, 3vw, 3.4rem);
+  line-height: 1.05;
+}
+
+.lede {
+  max-width: 640px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.heroMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+.statusPill.live {
+  background: rgba(86, 240, 169, 0.14);
+  color: var(--success);
+}
+
+.statusPill.warning {
+  background: rgba(255, 180, 74, 0.16);
+  color: var(--warning);
+}
+
+.statusPill.danger {
+  background: rgba(255, 111, 127, 0.18);
+  color: var(--danger);
+}
+
+.statusPill.subtle {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.kpiCard,
+.panel,
+.tab {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.kpiCard {
+  padding: 18px 20px;
+  border-radius: 20px;
+}
+
+.kpiCard span,
+.kpiCard small,
+.deviceIdentity p,
+.automationCard p,
+.alertCard p,
+.complianceRow p,
+.eventRow p,
+.routeCard span,
+.deviceStats span,
+.feedTile p,
+.feedTile small,
+.simulationCard small,
+.selectionBar p {
+  color: var(--muted);
+}
+
+.kpiCard strong {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 1.6rem;
+}
+
+.tabRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.tab {
+  border-radius: 999px;
+  color: var(--muted);
+  padding: 11px 16px;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: rgba(74, 210, 255, 0.34);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.95fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.primaryColumn,
+.sideColumn {
+  display: grid;
+  gap: 18px;
+}
+
+.panel {
+  padding: 22px;
+  border-radius: 24px;
+}
+
+.compactPanel {
+  padding: 20px;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ghostButton,
+.tinyButton,
+.feedTile {
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ghostButton,
+.feedTile {
+  border-radius: 16px;
+}
+
+.ghostButton {
+  padding: 10px 14px;
+}
+
+.tinyButton {
+  padding: 7px 10px;
+  border-radius: 999px;
+}
+
+.ghostButton:hover,
+.tinyButton:hover,
+.feedTile:hover {
+  transform: translateY(-1px);
+  border-color: rgba(74, 210, 255, 0.44);
+  background: rgba(74, 210, 255, 0.1);
+}
+
+.ghostButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.activeToggle,
+.tinyButton.protected {
+  background: rgba(86, 240, 169, 0.12);
+  border-color: rgba(86, 240, 169, 0.26);
+}
+
+.dangerButton {
+  border-color: rgba(255, 111, 127, 0.3);
+  background: rgba(255, 111, 127, 0.1);
+}
+
+.simulationGrid,
+.feedGrid,
+.routeList,
+.automationGrid,
+.alertList,
+.complianceList,
+.eventList,
+.deviceList {
+  display: grid;
+  gap: 14px;
+}
+
+.simulationGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.simulationCard,
+.routeCard,
+.deviceCard,
+.automationCard,
+.alertCard,
+.complianceRow,
+.selectionBar {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px;
+}
+
+.simulationCard span,
+.routeCard p,
+.automationMeta small,
+.alertFooter span,
+.eventRow span,
+.feedTileHeader small,
+.feedTile small {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.simulationCard strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 1.25rem;
+}
+
+.simulationCard.emphasis {
+  background: linear-gradient(135deg, rgba(74, 210, 255, 0.16), rgba(255, 255, 255, 0.04));
+}
+
+.feedGrid,
+.deviceList,
+.automationGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.feedTile {
+  padding: 18px;
+  text-align: left;
+}
+
+.feedTile.selected {
+  border-color: rgba(74, 210, 255, 0.44);
+  box-shadow: inset 0 0 0 1px rgba(74, 210, 255, 0.22);
+  background: rgba(74, 210, 255, 0.12);
+}
+
+.feedTileHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.badge.live {
+  color: var(--success);
+  background: rgba(86, 240, 169, 0.12);
+  border-color: rgba(86, 240, 169, 0.26);
+}
+
+.badge.warning {
+  color: var(--warning);
+  background: rgba(255, 180, 74, 0.12);
+  border-color: rgba(255, 180, 74, 0.22);
+}
+
+.badge.standby {
+  color: var(--accent);
+  background: rgba(74, 210, 255, 0.12);
+  border-color: rgba(74, 210, 255, 0.22);
+}
+
+.selectionBar,
+.routeCard,
+.deviceCard,
+.automationHeader,
+.alertFooter,
+.complianceRow,
+.eventRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.routeMeta,
+.deviceStats,
+.automationMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.deviceIdentity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.healthDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.healthDot.online {
+  background: var(--success);
+}
+
+.healthDot.degraded {
+  background: var(--warning);
+}
+
+.healthDot.offline {
+  background: var(--danger);
+}
+
+.alertCard.warning {
+  border-color: rgba(255, 180, 74, 0.26);
+}
+
+.alertCard.critical {
+  border-color: rgba(255, 111, 127, 0.3);
+}
+
+.alertCard.info {
+  border-color: rgba(74, 210, 255, 0.26);
+}
+
+.eventRow {
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.eventRow:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.eventRow span {
+  color: var(--accent);
+  min-width: 72px;
+}
+
+@media (max-width: 1120px) {
+  .kpiGrid,
+  .feedGrid,
+  .deviceList,
+  .automationGrid,
+  .simulationGrid,
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    flex-direction: column;
+  }
+
+  .heroMeta {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: min(100% - 20px, 1400px);
+    padding-top: 20px;
+  }
+
+  .hero,
+  .panel,
+  .kpiCard {
+    border-radius: 18px;
+  }
+
+  .panelHeader,
+  .selectionBar,
+  .routeCard,
+  .deviceCard,
+  .automationHeader,
+  .alertFooter,
+  .complianceRow,
+  .eventRow {
+    flex-direction: column;
+  }
+
+  .buttonRow {
+    width: 100%;
+  }
+
+  .buttonRow .ghostButton {
+    width: 100%;
+  }
+}

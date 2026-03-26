@@ -1,0 +1,12 @@
+{
+  "name": "nexus-broadcast",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix nexus-broadcast run dev",
+    "build": "npm --prefix nexus-broadcast run build",
+    "start": "npm --prefix nexus-broadcast run start",
+    "lint": "npm --prefix nexus-broadcast run lint",
+    "install:app": "npm --prefix nexus-broadcast install"
+  }
+}
