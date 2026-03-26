@@ -240,11 +240,22 @@ export type ProductionSetupRecord = {
   multiviewLayout: string
   multiviewSlots: string[]
   cameraCount: number
+  switcherMode: string
+  keyerProfile: string
   audioProfile: string
   graphicsProfile: string
+  monitoringProfile: string
+  shadingPreset: string
+  bridgeProfile: string
   redundancy: 'single' | 'protected' | 'dual-site'
+  sourceLayers: string[]
+  outputTargets: string[]
   primaryRouteIds: number[]
   connectorIds: number[]
+  controlPageId: number
+  workflowIds: number[]
+  macroIds: number[]
+  salvoIds: number[]
   notes: string
 }
 

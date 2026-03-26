@@ -384,11 +384,22 @@ function seedState(): PersistedState {
         multiviewLayout: '4x2 match gallery',
         multiviewSlots: ['CAM-1', 'CAM-2', 'CAM-3', 'CAM-4', 'Replay A', 'Graphics', 'Program', 'Preview'],
         cameraCount: 12,
+        switcherMode: '96-input hybrid switcher',
+        keyerProfile: 'Scorebug + sponsor wipe',
         audioProfile: '5.1 international with commentary',
         graphicsProfile: 'Sports lower thirds and scorebug',
+        monitoringProfile: 'Matchday loudness + waveform',
+        shadingPreset: 'Outdoor daylight sports',
+        bridgeProfile: 'Main bowl SDI ingest to ST 2110',
         redundancy: 'protected',
+        sourceLayers: ['Main cameras', 'RF handhelds', 'Replay lanes', 'Commentary', 'Graphics insert', 'Beauty shots'],
+        outputTargets: ['Program TX', 'Clean feed', 'OTT main', 'Venue screen', 'Highlights record', 'Archive ISO'],
         primaryRouteIds: [1, 2],
         connectorIds: [1, 2, 4, 5, 6, 7, 8],
+        controlPageId: 1,
+        workflowIds: [1, 4],
+        macroIds: [1],
+        salvoIds: [1, 3],
         notes: 'Main OB match workflow with cloud backup gallery.',
       },
       {
@@ -402,11 +413,22 @@ function seedState(): PersistedState {
         multiviewLayout: '3x3 newsroom',
         multiviewSlots: ['Anchor 1', 'Anchor 2', 'Remote Guest', 'Graphics', 'Program', 'Preview', 'Weather', 'Social'],
         cameraCount: 5,
+        switcherMode: '48-input gallery switcher',
+        keyerProfile: 'Breaking lower-thirds + remote boxes',
         audioProfile: 'Stereo anchor and remote guest',
         graphicsProfile: 'Breaking and lower-third package',
+        monitoringProfile: 'Confidence audio + remote return',
+        shadingPreset: 'Studio tungsten news',
+        bridgeProfile: 'Remote bureau SDI gateway',
         redundancy: 'protected',
+        sourceLayers: ['Studio cameras', 'Remote guest returns', 'Graphics engine', 'Weather wall', 'Teleprompter', 'Mic buses'],
+        outputTargets: ['Linear program', 'Digital clip out', 'Social vertical', 'Backup TX', 'Compliance record', 'News archive'],
         primaryRouteIds: [3, 4],
         connectorIds: [1, 4, 5, 6, 7, 8],
+        controlPageId: 1,
+        workflowIds: [1, 3],
+        macroIds: [2],
+        salvoIds: [1, 2],
         notes: 'Fast switching between studio, remote guest, and branded outputs.',
       },
       {
@@ -420,11 +442,22 @@ function seedState(): PersistedState {
         multiviewLayout: 'wide stage mosaic',
         multiviewSlots: ['Stage Wide', 'Stage Left', 'Stage Right', 'Crowd', 'Replay', 'Program', 'Preview', 'Lighting'],
         cameraCount: 8,
+        switcherMode: 'Hybrid event switcher',
+        keyerProfile: 'LED wall + lyrics + sponsor key',
         audioProfile: 'Music mix plus stems',
         graphicsProfile: 'Event branding and sponsor loop',
+        monitoringProfile: 'Music loudness + phase check',
+        shadingPreset: 'Concert contrast + saturation',
+        bridgeProfile: 'Stage SDI and flypack bridge',
         redundancy: 'dual-site',
+        sourceLayers: ['Stage cameras', 'Jib and crowd cams', 'LED wall feeds', 'Playback channels', 'Lighting cues', 'Audience mics'],
+        outputTargets: ['Arena IMAG', 'Broadcast TX', 'OTT clean', 'Record stems', 'Backstage monitors', 'Social edit feed'],
         primaryRouteIds: [2, 4],
         connectorIds: [1, 3, 5, 6, 7, 8],
+        controlPageId: 1,
+        workflowIds: [2, 4],
+        macroIds: [1, 3],
+        salvoIds: [2],
         notes: 'Draft remote entertainment build with dual-site recovery.',
       },
     ],
@@ -483,6 +516,23 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
       production.multiviewSlots && production.multiviewSlots.length > 0
         ? production.multiviewSlots
         : seeded.productions[index]?.multiviewSlots ?? ['Program', 'Preview', 'Aux 1', 'Aux 2', 'Route 1', 'Route 2', 'OB', 'MCR'],
+    switcherMode: production.switcherMode ?? seeded.productions[index]?.switcherMode ?? 'Hybrid production switcher',
+    keyerProfile: production.keyerProfile ?? seeded.productions[index]?.keyerProfile ?? 'Primary keyer set',
+    monitoringProfile: production.monitoringProfile ?? seeded.productions[index]?.monitoringProfile ?? 'Waveform + loudness watch',
+    shadingPreset: production.shadingPreset ?? seeded.productions[index]?.shadingPreset ?? 'Balanced neutral',
+    bridgeProfile: production.bridgeProfile ?? seeded.productions[index]?.bridgeProfile ?? 'Hybrid SDI/IP bridge',
+    sourceLayers:
+      production.sourceLayers && production.sourceLayers.length > 0
+        ? production.sourceLayers
+        : seeded.productions[index]?.sourceLayers ?? ['Primary cameras', 'Replay', 'Graphics', 'Audio', 'Remote source', 'Utility input'],
+    outputTargets:
+      production.outputTargets && production.outputTargets.length > 0
+        ? production.outputTargets
+        : seeded.productions[index]?.outputTargets ?? ['Program', 'Preview', 'OTT', 'Archive', 'Monitoring', 'Backup'],
+    controlPageId: production.controlPageId ?? seeded.productions[index]?.controlPageId ?? 1,
+    workflowIds: production.workflowIds ?? seeded.productions[index]?.workflowIds ?? [],
+    macroIds: production.macroIds ?? seeded.productions[index]?.macroIds ?? [],
+    salvoIds: production.salvoIds ?? seeded.productions[index]?.salvoIds ?? [],
   }))
   return state
 }
@@ -840,8 +890,33 @@ export async function applyProductionSetup(productionId: number) {
     activeServices: site.id === production.siteId ? Math.max(site.activeServices, production.cameraCount + 4) : site.activeServices,
     mode: site.id === production.siteId ? 'Production' : site.mode,
   }))
+  state.controlPages = state.controlPages.map((page) =>
+    page.workspace === 'operator'
+      ? { ...page, active: page.id === production.controlPageId }
+      : page,
+  )
+  state.orchestrateWorkflows = state.orchestrateWorkflows.map((workflow) => ({
+    ...workflow,
+    status: production.workflowIds.includes(workflow.id) ? (workflow.trigger === 'alarm' ? 'armed' : 'idle') : workflow.status,
+  }))
+  production.salvoIds.forEach((salvoId) => {
+    const salvo = state.controlSalvos.find((item) => item.id === salvoId)
+    if (salvo) {
+      addOrchestrateLog(state, 'SALVO', `${salvo.name} attached to ${production.name}.`, 'ok')
+    }
+  })
+  production.macroIds.forEach((macroId) => {
+    const macro = state.orchestrateMacros.find((item) => item.id === macroId)
+    if (macro) {
+      addOrchestrateLog(state, 'MACRO', `${macro.name} bound into ${production.name}.`, 'ok')
+    }
+  })
 
-  addEvent(state, 'Production setup applied', `${production.name} is now active with ${production.multiviewLayout}.`)
+  addEvent(
+    state,
+    'Production setup applied',
+    `${production.name} is now active with ${production.multiviewLayout}, ${production.switcherMode}, and ${production.outputTargets.length} delivery targets.`,
+  )
   await writeState(state)
   return production
 }

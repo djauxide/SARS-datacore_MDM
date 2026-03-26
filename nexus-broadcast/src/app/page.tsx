@@ -459,6 +459,16 @@ export default function NexusEnterprisePage() {
     })
   }
 
+  const updateProductionPlanItem = (key: 'sourceLayers' | 'outputTargets', index: number, value: string) => {
+    setProductionDraft((current) => {
+      if (!current) return current
+      const fallbackPrefix = key === 'sourceLayers' ? 'Source' : 'Output'
+      const items = [...(current[key] ?? Array.from({ length: 6 }, (_, slotIndex) => `${fallbackPrefix} ${slotIndex + 1}`))]
+      items[index] = value
+      return { ...current, [key]: items }
+    })
+  }
+
   const saveProductionDraft = async () => {
     if (!productionDraft) return
     setBusyAction('production-save-draft')
@@ -476,11 +486,22 @@ export default function NexusEnterprisePage() {
         multiviewLayout: productionDraft.multiviewLayout,
         multiviewSlots: productionDraft.multiviewSlots,
         cameraCount: productionDraft.cameraCount,
+        switcherMode: productionDraft.switcherMode,
+        keyerProfile: productionDraft.keyerProfile,
         audioProfile: productionDraft.audioProfile,
         graphicsProfile: productionDraft.graphicsProfile,
+        monitoringProfile: productionDraft.monitoringProfile,
+        shadingPreset: productionDraft.shadingPreset,
+        bridgeProfile: productionDraft.bridgeProfile,
         redundancy: productionDraft.redundancy,
+        sourceLayers: productionDraft.sourceLayers,
+        outputTargets: productionDraft.outputTargets,
         primaryRouteIds: productionDraft.primaryRouteIds,
         connectorIds: productionDraft.connectorIds,
+        controlPageId: productionDraft.controlPageId,
+        workflowIds: productionDraft.workflowIds,
+        macroIds: productionDraft.macroIds,
+        salvoIds: productionDraft.salvoIds,
         notes: productionDraft.notes,
       }),
     })
@@ -1717,7 +1738,11 @@ export default function NexusEnterprisePage() {
                           <small>{production.audioProfile}</small>
                         </div>
                         <div className="trainingMeta">
+                          <small>{production.switcherMode}</small>
                           <small>{production.graphicsProfile}</small>
+                        </div>
+                        <div className="trainingMeta">
+                          <small>{production.keyerProfile}</small>
                           <small>{production.redundancy} redundancy</small>
                         </div>
                         <p className="trainingText">{production.notes}</p>
@@ -1816,7 +1841,7 @@ export default function NexusEnterprisePage() {
                     <article className="manufacturerCard">
                       <div className="trainingCardHeader">
                         <span className="badge standby">resources</span>
-                        <small>layout, cameras, and resilience</small>
+                        <small>layout, switcher, and resilience</small>
                       </div>
                       <div className="trainingMeta">
                         <label className="trainingText">
@@ -1836,6 +1861,24 @@ export default function NexusEnterprisePage() {
                             min={1}
                             value={productionDraft.cameraCount ?? 1}
                             onChange={(event) => updateProductionDraft('cameraCount', Number(event.target.value))}
+                          />
+                        </label>
+                        <label className="trainingText">
+                          Switcher mode
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.switcherMode ?? ''}
+                            onChange={(event) => updateProductionDraft('switcherMode', event.target.value)}
+                          />
+                        </label>
+                        <label className="trainingText">
+                          Keyer profile
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.keyerProfile ?? ''}
+                            onChange={(event) => updateProductionDraft('keyerProfile', event.target.value)}
                           />
                         </label>
                         <label className="trainingText">
@@ -1868,13 +1911,40 @@ export default function NexusEnterprisePage() {
                             onChange={(event) => updateProductionDraft('graphicsProfile', event.target.value)}
                           />
                         </label>
+                        <label className="trainingText">
+                          Monitoring profile
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.monitoringProfile ?? ''}
+                            onChange={(event) => updateProductionDraft('monitoringProfile', event.target.value)}
+                          />
+                        </label>
+                        <label className="trainingText">
+                          Shading preset
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.shadingPreset ?? ''}
+                            onChange={(event) => updateProductionDraft('shadingPreset', event.target.value)}
+                          />
+                        </label>
+                        <label className="trainingText">
+                          Bridge profile
+                          <input
+                            className="inp"
+                            type="text"
+                            value={productionDraft.bridgeProfile ?? ''}
+                            onChange={(event) => updateProductionDraft('bridgeProfile', event.target.value)}
+                          />
+                        </label>
                       </div>
                     </article>
 
                     <article className="manufacturerCard">
                       <div className="trainingCardHeader">
                         <span className="badge standby">binding</span>
-                        <small>site, studio, and MCR target</small>
+                        <small>site, studio, MCR, and operator page</small>
                       </div>
                       <div className="trainingMeta">
                         <label className="trainingText">
@@ -1917,6 +1987,22 @@ export default function NexusEnterprisePage() {
                                 {chain.name}
                               </option>
                             ))}
+                          </select>
+                        </label>
+                        <label className="trainingText">
+                          Operator page
+                          <select
+                            className="sel"
+                            value={productionDraft.controlPageId ?? 1}
+                            onChange={(event) => updateProductionDraft('controlPageId', Number(event.target.value))}
+                          >
+                            {snapshot.controlConfig.pages
+                              .filter((page) => page.workspace === 'operator')
+                              .map((page) => (
+                                <option key={page.id} value={page.id}>
+                                  {page.name} • {page.layout}
+                                </option>
+                              ))}
                           </select>
                         </label>
                         <div className="buttonRow">
@@ -1991,6 +2077,46 @@ export default function NexusEnterprisePage() {
 
                     <article className="manufacturerCard">
                       <div className="trainingCardHeader">
+                        <span className="badge standby">sources</span>
+                        <small>end-to-end source plan</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {(productionDraft.sourceLayers ?? Array.from({ length: 6 }, (_, index) => `Source ${index + 1}`)).map((source, index) => (
+                          <label key={`${selectedProduction?.id}-source-${index}`} className="trainingText">
+                            Source {index + 1}
+                            <input
+                              className="inp"
+                              type="text"
+                              value={source}
+                              onChange={(event) => updateProductionPlanItem('sourceLayers', index, event.target.value)}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">outputs</span>
+                        <small>delivery and monitoring targets</small>
+                      </div>
+                      <div className="trainingMeta">
+                        {(productionDraft.outputTargets ?? Array.from({ length: 6 }, (_, index) => `Output ${index + 1}`)).map((target, index) => (
+                          <label key={`${selectedProduction?.id}-target-${index}`} className="trainingText">
+                            Output {index + 1}
+                            <input
+                              className="inp"
+                              type="text"
+                              value={target}
+                              onChange={(event) => updateProductionPlanItem('outputTargets', index, event.target.value)}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
                         <span className="badge standby">devices</span>
                         <small>cross-vendor bindings</small>
                       </div>
@@ -2012,6 +2138,78 @@ export default function NexusEnterprisePage() {
                               }
                             >
                               {connector.vendor} {connector.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </article>
+
+                    <article className="manufacturerCard">
+                      <div className="trainingCardHeader">
+                        <span className="badge standby">automation</span>
+                        <small>workflow, macro, and salvo binding</small>
+                      </div>
+                      <div className="trainingMeta">
+                        <p className="trainingText">Workflows</p>
+                        {snapshot.orchestrate.workflows.map((workflow) => {
+                          const selected = productionDraft.workflowIds?.includes(workflow.id) ?? false
+                          return (
+                            <button
+                              key={workflow.id}
+                              type="button"
+                              className={selected ? 'ghostButton activeToggle' : 'ghostButton'}
+                              onClick={() =>
+                                updateProductionDraft(
+                                  'workflowIds',
+                                  selected
+                                    ? (productionDraft.workflowIds ?? []).filter((id) => id !== workflow.id)
+                                    : [...(productionDraft.workflowIds ?? []), workflow.id],
+                                )
+                              }
+                            >
+                              {workflow.name} • {workflow.trigger}
+                            </button>
+                          )
+                        })}
+                        <p className="trainingText">Macros</p>
+                        {snapshot.orchestrate.macros.map((macro) => {
+                          const selected = productionDraft.macroIds?.includes(macro.id) ?? false
+                          return (
+                            <button
+                              key={macro.id}
+                              type="button"
+                              className={selected ? 'ghostButton activeToggle' : 'ghostButton'}
+                              onClick={() =>
+                                updateProductionDraft(
+                                  'macroIds',
+                                  selected
+                                    ? (productionDraft.macroIds ?? []).filter((id) => id !== macro.id)
+                                    : [...(productionDraft.macroIds ?? []), macro.id],
+                                )
+                              }
+                            >
+                              {macro.name}
+                            </button>
+                          )
+                        })}
+                        <p className="trainingText">Salvos</p>
+                        {snapshot.controlConfig.salvos.map((salvo) => {
+                          const selected = productionDraft.salvoIds?.includes(salvo.id) ?? false
+                          return (
+                            <button
+                              key={salvo.id}
+                              type="button"
+                              className={selected ? 'ghostButton activeToggle' : 'ghostButton'}
+                              onClick={() =>
+                                updateProductionDraft(
+                                  'salvoIds',
+                                  selected
+                                    ? (productionDraft.salvoIds ?? []).filter((id) => id !== salvo.id)
+                                    : [...(productionDraft.salvoIds ?? []), salvo.id],
+                                )
+                              }
+                            >
+                              {salvo.name} • {salvo.mode}
                             </button>
                           )
                         })}
