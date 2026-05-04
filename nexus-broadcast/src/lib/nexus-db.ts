@@ -1,17 +1,22 @@
 import type {
   AlertRecord,
+  AdCampaignRecord,
   BroadcastControlConfigRecord,
+  ConnectedTvChannelRecord,
   ConnectorRecord,
   ColorEngineRecord,
   ControlPageRecord,
   ControlPanelRecord,
+  CustomerRecord,
   EquipmentRecord,
   EventRecord,
   GpioRecord,
   JobRecord,
   McrChainRecord,
+  MiddlewareAppRecord,
   NmosFlowRecord,
   NmosNodeRecord,
+  OnboardingTaskRecord,
   ObUnitRecord,
   OrchestrateLogRecord,
   OrchestrateMacroRecord,
@@ -24,6 +29,7 @@ import type {
   RouteRecord,
   RunbookRecord,
   SdiBridgeRecord,
+  ScteMarkerRecord,
   SalvoRecord,
   ScenarioRecord,
   SenderRecord,
@@ -74,6 +80,12 @@ type PersistedState = {
   controlPanels: ControlPanelRecord[]
   controlSalvos: SalvoRecord[]
   controlTallies: TallyUmdRecord[]
+  customers: CustomerRecord[]
+  middlewareApps: MiddlewareAppRecord[]
+  ctvChannels: ConnectedTvChannelRecord[]
+  adCampaigns: AdCampaignRecord[]
+  scteMarkers: ScteMarkerRecord[]
+  onboardingTasks: OnboardingTaskRecord[]
 }
 
 function nowIso() {
@@ -372,6 +384,100 @@ function seedState(): PersistedState {
     controlPanels,
     controlSalvos,
     controlTallies,
+    customers: [
+      {
+        id: 1,
+        name: 'Mzansi Stream Network',
+        brand: 'Mzansi Live',
+        region: 'South Africa',
+        tier: 'Enterprise',
+        status: 'active',
+        tenantId: 1,
+        primaryDomain: 'mzansi-live.example',
+        contactEmail: 'ops@mzansi-live.example',
+        createdAt: seen,
+      },
+      {
+        id: 2,
+        name: 'AfroSport Digital',
+        brand: 'AfroSport FAST',
+        region: 'Pan Africa',
+        tier: 'Growth',
+        status: 'onboarding',
+        tenantId: 1,
+        primaryDomain: 'afrosport-fast.example',
+        contactEmail: 'launch@afrosport-fast.example',
+        createdAt: seen,
+      },
+    ],
+    middlewareApps: [
+      { id: 1, customerId: 1, name: 'Identity Gateway', category: 'identity', status: 'active', endpoint: 'https://id.mzansi-live.example', authMode: 'oauth', lastSync: seen, slaMs: 86 },
+      { id: 2, customerId: 1, name: 'Ad Decision Server', category: 'ads', status: 'active', endpoint: 'https://ads.mzansi-live.example/vast', authMode: 'api-key', lastSync: seen, slaMs: 112 },
+      { id: 3, customerId: 1, name: 'Origin Playout API', category: 'playout', status: 'active', endpoint: 'https://origin.mzansi-live.example', authMode: 'signed-url', lastSync: seen, slaMs: 74 },
+      { id: 4, customerId: 2, name: 'Billing Meter', category: 'billing', status: 'provisioning', endpoint: 'https://billing.afrosport-fast.example', authMode: 'service-account', lastSync: seen, slaMs: 160 },
+      { id: 5, customerId: 2, name: 'Analytics Beacon', category: 'analytics', status: 'pending', endpoint: 'https://events.afrosport-fast.example', authMode: 'api-key', lastSync: seen, slaMs: 180 },
+    ],
+    ctvChannels: [
+      {
+        id: 1,
+        customerId: 1,
+        name: 'Mzansi Sports 24',
+        slug: 'mzansi-sports-24',
+        genre: 'sports',
+        status: 'live',
+        region: 'South Africa',
+        playoutMode: 'hybrid',
+        distributionTargets: ['Samsung TV Plus', 'LG Channels', 'Web FAST', 'Mobile App'],
+        localInsertionEnabled: true,
+        adInsertionEnabled: true,
+        scteProfileId: 1,
+      },
+      {
+        id: 2,
+        customerId: 1,
+        name: 'Jozi News Now',
+        slug: 'jozi-news-now',
+        genre: 'news',
+        status: 'scheduled',
+        region: 'Gauteng',
+        playoutMode: 'cloud',
+        distributionTargets: ['Web FAST', 'Mobile App'],
+        localInsertionEnabled: true,
+        adInsertionEnabled: true,
+        scteProfileId: 1,
+      },
+      {
+        id: 3,
+        customerId: 2,
+        name: 'AfroSport Launch Channel',
+        slug: 'afrosport-launch',
+        genre: 'sports',
+        status: 'draft',
+        region: 'Pan Africa',
+        playoutMode: 'cloud',
+        distributionTargets: ['Partner QA', 'Web FAST'],
+        localInsertionEnabled: false,
+        adInsertionEnabled: false,
+        scteProfileId: 2,
+      },
+    ],
+    adCampaigns: [
+      { id: 1, customerId: 1, channelId: 1, name: 'Derby Weekend Sponsor Pack', buyer: 'Nexus Media Sales', status: 'live', targetRegions: ['Johannesburg', 'Cape Town'], cpmUsd: 6.5, bookedImpressions: 1200000, deliveredImpressions: 368000 },
+      { id: 2, customerId: 1, channelId: 2, name: 'Local News Prime Sponsorship', buyer: 'Regional Direct', status: 'ready', targetRegions: ['Gauteng'], cpmUsd: 4.2, bookedImpressions: 650000, deliveredImpressions: 0 },
+      { id: 3, customerId: 2, channelId: 3, name: 'Launch House Ads', buyer: 'Internal', status: 'draft', targetRegions: ['Pan Africa'], cpmUsd: 0, bookedImpressions: 250000, deliveredImpressions: 0 },
+    ],
+    scteMarkers: [
+      { id: 1, channelId: 1, profile: 'SCTE-35', eventId: '0x1001', spliceCommand: 'insert', status: 'armed', availStart: '20:15:00', durationSec: 120, automationRuleId: 3 },
+      { id: 2, channelId: 1, profile: 'SCTE-35', eventId: '0x1002', spliceCommand: 'return', status: 'scheduled', availStart: '20:17:00', durationSec: 0, automationRuleId: 3 },
+      { id: 3, channelId: 2, profile: 'SCTE-104', eventId: '0x2001', spliceCommand: 'provider-placement', status: 'scheduled', availStart: '21:00:00', durationSec: 90, automationRuleId: 3 },
+      { id: 4, channelId: 3, profile: 'SCTE-35', eventId: '0x3001', spliceCommand: 'insert', status: 'scheduled', availStart: '09:00:00', durationSec: 60 },
+    ],
+    onboardingTasks: [
+      { id: 1, customerId: 2, title: 'Create tenant and operator users', owner: 'system', status: 'complete', detail: 'Tenant shell and launch contacts are present.' },
+      { id: 2, customerId: 2, title: 'Provision ad and analytics middleware', owner: 'nexus', status: 'running', detail: 'Billing and analytics endpoints are being activated.' },
+      { id: 3, customerId: 2, title: 'Approve first channel lineup', owner: 'customer', status: 'pending', detail: 'Customer must confirm launch schedule and regional feeds.' },
+      { id: 4, customerId: 2, title: 'Validate SCTE markers', owner: 'system', status: 'pending', detail: 'Markers will be armed once ad insertion is enabled.' },
+    ],
     productions: [
       {
         id: 1,
@@ -507,6 +613,12 @@ function normalizeState(raw: Partial<PersistedState>): PersistedState {
     controlPanels: raw.controlPanels ?? seeded.controlPanels,
     controlSalvos: raw.controlSalvos ?? seeded.controlSalvos,
     controlTallies: raw.controlTallies ?? seeded.controlTallies,
+    customers: raw.customers ?? seeded.customers,
+    middlewareApps: raw.middlewareApps ?? seeded.middlewareApps,
+    ctvChannels: raw.ctvChannels ?? seeded.ctvChannels,
+    adCampaigns: raw.adCampaigns ?? seeded.adCampaigns,
+    scteMarkers: raw.scteMarkers ?? seeded.scteMarkers,
+    onboardingTasks: raw.onboardingTasks ?? seeded.onboardingTasks,
   }
 
   normalizeBranding(state)
@@ -636,6 +748,10 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
       connectedConnectors: state.connectors.filter((item) => item.status === 'connected').length,
       queuedJobs: state.jobs.filter((item) => item.state === 'queued' || item.state === 'running').length,
       liveStudios: state.virtualStudios.filter((item) => item.mode === 'live').length,
+      activeCustomers: state.customers.filter((item) => item.status === 'active').length,
+      activeMiddlewareApps: state.middlewareApps.filter((item) => item.status === 'active').length,
+      liveCtvChannels: state.ctvChannels.filter((item) => item.status === 'live').length,
+      armedScteMarkers: state.scteMarkers.filter((item) => item.status === 'armed').length,
     },
     equipment: state.equipment,
     nmosNodes: state.nmosNodes,
@@ -665,6 +781,14 @@ export async function getPlatformSnapshot(): Promise<PlatformSnapshot> {
       salvos: state.controlSalvos,
       tallies: state.controlTallies,
     },
+    management: {
+      customers: state.customers,
+      middlewareApps: state.middlewareApps,
+      ctvChannels: state.ctvChannels,
+      adCampaigns: state.adCampaigns,
+      scteMarkers: state.scteMarkers,
+      onboardingTasks: state.onboardingTasks,
+    },
   }
 }
 
@@ -676,6 +800,164 @@ function addOrchestrateLog(state: PersistedState, scope: string, message: string
     message,
     level,
   })
+}
+
+export async function getManagementState() {
+  const state = await readState()
+  return {
+    customers: state.customers,
+    middlewareApps: state.middlewareApps,
+    ctvChannels: state.ctvChannels,
+    adCampaigns: state.adCampaigns,
+    scteMarkers: state.scteMarkers,
+    onboardingTasks: state.onboardingTasks,
+  }
+}
+
+export async function onboardCustomer(input: {
+  name: string
+  brand: string
+  region: string
+  contactEmail: string
+  tier?: CustomerRecord['tier']
+}) {
+  const state = await readState()
+  const id = Date.now()
+  const tenantId = id
+  const slug = input.brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `customer-${id}`
+
+  const customer: CustomerRecord = {
+    id,
+    name: input.name,
+    brand: input.brand,
+    region: input.region,
+    tier: input.tier ?? 'Launch',
+    status: 'onboarding',
+    tenantId,
+    primaryDomain: `${slug}.example`,
+    contactEmail: input.contactEmail,
+    createdAt: nowIso(),
+  }
+
+  state.customers.unshift(customer)
+  state.tenants.unshift({ id: tenantId, name: input.name, region: input.region, tier: input.tier === 'Enterprise' ? 'Enterprise' : 'Broadcast Group' })
+  state.sites.unshift({
+    id: id + 1,
+    tenantId,
+    name: `${input.brand} Cloud Control`,
+    location: input.region,
+    mode: 'Production',
+    health: 'healthy',
+    activeServices: 1,
+    ptpOffsetNs: 112,
+  })
+  state.middlewareApps.unshift(
+    { id: id + 2, customerId: id, name: 'Identity Gateway', category: 'identity', status: 'provisioning', endpoint: `https://id.${slug}.example`, authMode: 'oauth', lastSync: nowIso(), slaMs: 140 },
+    { id: id + 3, customerId: id, name: 'Ad Decision Server', category: 'ads', status: 'pending', endpoint: `https://ads.${slug}.example/vast`, authMode: 'api-key', lastSync: nowIso(), slaMs: 180 },
+    { id: id + 4, customerId: id, name: 'Origin Playout API', category: 'playout', status: 'pending', endpoint: `https://origin.${slug}.example`, authMode: 'signed-url', lastSync: nowIso(), slaMs: 160 },
+  )
+  state.ctvChannels.unshift({
+    id: id + 5,
+    customerId: id,
+    name: `${input.brand} Launch Channel`,
+    slug: `${slug}-launch`,
+    genre: 'entertainment',
+    status: 'draft',
+    region: input.region,
+    playoutMode: 'cloud',
+    distributionTargets: ['Web FAST', 'Partner QA'],
+    localInsertionEnabled: false,
+    adInsertionEnabled: false,
+    scteProfileId: id + 8,
+  })
+  state.onboardingTasks.unshift(
+    { id: id + 6, customerId: id, title: 'Provision middleware apps', owner: 'system', status: 'running', detail: 'Identity, ad decisioning, and playout services are being created.' },
+    { id: id + 7, customerId: id, title: 'Approve launch channel', owner: 'customer', status: 'pending', detail: 'Customer must confirm channel name, region, and distribution targets.' },
+    { id: id + 8, customerId: id, title: 'Validate SCTE and ad policy', owner: 'nexus', status: 'pending', detail: 'Ad insertion stays disabled until marker policy is approved.' },
+  )
+
+  addEvent(state, 'Customer onboarding started', `${customer.name} entered onboarding with middleware provisioning queued.`)
+  await writeState(state)
+  return customer
+}
+
+export async function setMiddlewareStatus(appId: number, status: MiddlewareAppRecord['status']) {
+  const state = await readState()
+  state.middlewareApps = state.middlewareApps.map((app) => (app.id === appId ? { ...app, status, lastSync: nowIso() } : app))
+  const app = state.middlewareApps.find((item) => item.id === appId)
+  if (app) {
+    addEvent(state, 'Middleware status changed', `${app.name} is now ${status}.`)
+  }
+  await writeState(state)
+  return app
+}
+
+export async function advanceOnboarding(customerId: number) {
+  const state = await readState()
+  state.middlewareApps = state.middlewareApps.map((app) =>
+    app.customerId === customerId && (app.status === 'pending' || app.status === 'provisioning')
+      ? { ...app, status: 'active', lastSync: nowIso(), slaMs: Math.min(app.slaMs, 118) }
+      : app,
+  )
+  state.onboardingTasks = state.onboardingTasks.map((task) =>
+    task.customerId === customerId && task.status !== 'complete' ? { ...task, status: task.owner === 'customer' ? 'pending' : 'complete' } : task,
+  )
+  state.customers = state.customers.map((customer) => (customer.id === customerId ? { ...customer, status: 'active' } : customer))
+  state.ctvChannels = state.ctvChannels.map((channel) =>
+    channel.customerId === customerId ? { ...channel, status: 'scheduled', adInsertionEnabled: true, localInsertionEnabled: true } : channel,
+  )
+  const customer = state.customers.find((item) => item.id === customerId)
+  if (customer) {
+    addEvent(state, 'Customer activated', `${customer.name} middleware is active and launch channels are scheduled.`)
+  }
+  await writeState(state)
+  return customer
+}
+
+export async function launchCtvChannel(channelId: number) {
+  const state = await readState()
+  state.ctvChannels = state.ctvChannels.map((channel) => (channel.id === channelId ? { ...channel, status: 'live' } : channel))
+  const channel = state.ctvChannels.find((item) => item.id === channelId)
+  if (channel) {
+    const markerId = Date.now()
+    state.scteMarkers.unshift({
+      id: markerId,
+      channelId: channel.id,
+      profile: 'SCTE-35',
+      eventId: `0x${markerId.toString(16).slice(-4)}`,
+      spliceCommand: 'insert',
+      status: 'armed',
+      availStart: nowClock(),
+      durationSec: 120,
+    })
+    addEvent(state, 'CTV channel launched', `${channel.name} is live with SCTE marker ${markerId} armed.`)
+  }
+  await writeState(state)
+  return channel
+}
+
+export async function fireScteMarker(markerId: number) {
+  const state = await readState()
+  state.scteMarkers = state.scteMarkers.map((marker) => (marker.id === markerId ? { ...marker, status: 'fired' } : marker))
+  const marker = state.scteMarkers.find((item) => item.id === markerId)
+  if (marker) {
+    addEvent(state, 'SCTE marker fired', `${marker.eventId} fired for channel ${marker.channelId}.`)
+  }
+  await writeState(state)
+  return marker
+}
+
+export async function startAdCampaign(campaignId: number) {
+  const state = await readState()
+  state.adCampaigns = state.adCampaigns.map((campaign) =>
+    campaign.id === campaignId ? { ...campaign, status: 'live', deliveredImpressions: Math.max(campaign.deliveredImpressions, 1) } : campaign,
+  )
+  const campaign = state.adCampaigns.find((item) => item.id === campaignId)
+  if (campaign) {
+    addEvent(state, 'Ad campaign live', `${campaign.name} is live for channel ${campaign.channelId}.`)
+  }
+  await writeState(state)
+  return campaign
 }
 
 export async function runOrchestrateWorkflow(workflowId: number) {

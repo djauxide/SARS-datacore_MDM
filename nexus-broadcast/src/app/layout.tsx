@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Nexus Broadcast Orchestrate',
-  description: 'Hybrid Cloud-to-Ground Broadcast Orchestration Platform with device health, routing, automation, and compliance visibility.',
+  title: 'Nexus Connected TV',
+  description: 'Standalone connected TV and FAST platform with channel operations, SCTE markers, ad insertion, monetization, and cloud playout control.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

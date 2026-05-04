@@ -372,6 +372,89 @@ export type BroadcastControlConfigRecord = {
   tallies: TallyUmdRecord[]
 }
 
+export type CustomerRecord = {
+  id: number
+  name: string
+  brand: string
+  region: string
+  tier: 'Launch' | 'Growth' | 'Enterprise'
+  status: 'prospect' | 'onboarding' | 'active' | 'suspended'
+  tenantId: number
+  primaryDomain: string
+  contactEmail: string
+  createdAt: string
+}
+
+export type MiddlewareAppRecord = {
+  id: number
+  customerId: number
+  name: string
+  category: 'identity' | 'billing' | 'ads' | 'playout' | 'analytics' | 'storage' | 'compliance'
+  status: 'pending' | 'provisioning' | 'active' | 'degraded' | 'disabled'
+  endpoint: string
+  authMode: 'api-key' | 'oauth' | 'signed-url' | 'service-account'
+  lastSync: string
+  slaMs: number
+}
+
+export type ConnectedTvChannelRecord = {
+  id: number
+  customerId: number
+  name: string
+  slug: string
+  genre: 'sports' | 'news' | 'entertainment' | 'kids' | 'music' | 'lifestyle'
+  status: 'draft' | 'scheduled' | 'live' | 'paused'
+  region: string
+  playoutMode: 'cloud' | 'hybrid' | 'edge'
+  distributionTargets: string[]
+  localInsertionEnabled: boolean
+  adInsertionEnabled: boolean
+  scteProfileId: number
+}
+
+export type AdCampaignRecord = {
+  id: number
+  customerId: number
+  channelId: number
+  name: string
+  buyer: string
+  status: 'draft' | 'ready' | 'live' | 'paused'
+  targetRegions: string[]
+  cpmUsd: number
+  bookedImpressions: number
+  deliveredImpressions: number
+}
+
+export type ScteMarkerRecord = {
+  id: number
+  channelId: number
+  profile: 'SCTE-35' | 'SCTE-104'
+  eventId: string
+  spliceCommand: 'insert' | 'return' | 'provider-placement' | 'distributor-placement'
+  status: 'scheduled' | 'armed' | 'fired' | 'reconciled'
+  availStart: string
+  durationSec: number
+  automationRuleId?: number
+}
+
+export type OnboardingTaskRecord = {
+  id: number
+  customerId: number
+  title: string
+  owner: 'customer' | 'nexus' | 'system'
+  status: 'pending' | 'running' | 'complete' | 'blocked'
+  detail: string
+}
+
+export type PlatformManagementRecord = {
+  customers: CustomerRecord[]
+  middlewareApps: MiddlewareAppRecord[]
+  ctvChannels: ConnectedTvChannelRecord[]
+  adCampaigns: AdCampaignRecord[]
+  scteMarkers: ScteMarkerRecord[]
+  onboardingTasks: OnboardingTaskRecord[]
+}
+
 export type PlatformSnapshot = {
   generatedAt: string
   facilities: string[]
@@ -397,6 +480,10 @@ export type PlatformSnapshot = {
     connectedConnectors: number
     queuedJobs: number
     liveStudios: number
+    activeCustomers: number
+    activeMiddlewareApps: number
+    liveCtvChannels: number
+    armedScteMarkers: number
   }
   equipment: EquipmentRecord[]
   nmosNodes: NmosNodeRecord[]
@@ -420,6 +507,7 @@ export type PlatformSnapshot = {
     cloudMode: 'on-prem' | 'hybrid' | 'cloud'
   }
   controlConfig: BroadcastControlConfigRecord
+  management: PlatformManagementRecord
 }
 
 export type SessionRecord = {
