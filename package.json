@@ -8,5 +8,10 @@
     "start": "npm --prefix nexus-broadcast run start",
     "lint": "npm --prefix nexus-broadcast run lint",
     "install:app": "npm --prefix nexus-broadcast install"
+  },
+  "dependencies": {
+    "next": "14.2.35",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   }
 }
