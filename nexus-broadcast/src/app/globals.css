@@ -1990,3 +1990,284 @@ button {
     margin-bottom: 14px;
   }
 }
+
+.sarsShell {
+  width: min(1440px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.sarsTopbar,
+.sarsHero,
+.sarsWorkspace,
+.sarsKpis,
+.sarsBriefMeta,
+.sarsModuleGrid,
+.sarsVendorGrid,
+.sarsMainColumn,
+.sarsSideColumn {
+  display: grid;
+  gap: 16px;
+}
+
+.sarsTopbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  padding: 16px 0 20px;
+}
+
+.sarsTopbar h1 {
+  max-width: 920px;
+  margin: 0;
+  font-size: clamp(1.9rem, 2.6vw, 3.1rem);
+  line-height: 1.06;
+}
+
+.sarsNav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.sarsError {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 111, 127, 0.3);
+  border-radius: 8px;
+  color: var(--danger);
+  background: rgba(255, 111, 127, 0.1);
+}
+
+.sarsHero {
+  grid-template-columns: 360px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.sarsTrustPanel,
+.sarsHeroBrief,
+.sarsCard,
+.sarsVendorCard,
+.sarsPolicyBox,
+.sarsAnswer {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sarsTrustPanel,
+.sarsHeroBrief {
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.sarsTrustPanel {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(86, 240, 169, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(12, 30, 34, 0.96), rgba(7, 17, 31, 0.96));
+}
+
+.sarsTrustPanel span,
+.sarsBriefMeta span,
+.sarsCard p,
+.sarsVendorCard p,
+.sarsAnswer p,
+.sarsPolicyBox p,
+.sarsPolicyBox small,
+.sarsConsole p {
+  color: var(--muted);
+}
+
+.sarsTrustPanel strong {
+  font-size: clamp(3rem, 6vw, 5.2rem);
+  line-height: 0.95;
+}
+
+.sarsTrustPanel small {
+  color: var(--success);
+}
+
+.sarsTrustBar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sarsTrustBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--success), var(--accent));
+}
+
+.sarsHeroBrief h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 2.3rem);
+}
+
+.sarsHeroBrief p {
+  max-width: 820px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.sarsBriefMeta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sarsBriefMeta span {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  overflow-wrap: anywhere;
+}
+
+.sarsKpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 16px 0;
+}
+
+.sarsWorkspace {
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.82fr);
+  align-items: start;
+}
+
+.sarsModuleGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sarsCard,
+.sarsVendorCard,
+.sarsPolicyBox,
+.sarsAnswer {
+  padding: 16px;
+}
+
+.sarsCard h3,
+.sarsVendorCard h3,
+.sarsAnswer p,
+.sarsPolicyBox p {
+  margin: 10px 0 0;
+}
+
+.sarsDomainTable {
+  display: grid;
+  gap: 8px;
+}
+
+.sarsDomainRow {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 0.8fr 0.8fr 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sarsDomainRow:hover {
+  border-color: rgba(74, 210, 255, 0.42);
+  background: rgba(74, 210, 255, 0.08);
+}
+
+.sarsDomainRow span {
+  color: var(--muted);
+}
+
+.sarsVendorGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.sarsVendorCard.preferred {
+  border-color: rgba(86, 240, 169, 0.38);
+  background: rgba(86, 240, 169, 0.08);
+}
+
+.sarsVendorCard strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 1.7rem;
+}
+
+.sarsPrompt {
+  width: 100%;
+  min-height: 96px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.045);
+  resize: vertical;
+}
+
+.sarsAnswer,
+.sarsPolicyBox,
+.sarsConsole {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.sarsPolicyBox small {
+  display: block;
+  line-height: 1.45;
+}
+
+.sarsConsole {
+  padding: 12px;
+  border-radius: 8px;
+  background: #050b14;
+}
+
+.sarsConsole p {
+  margin: 0;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.sarsConsole span {
+  display: inline-block;
+  min-width: 68px;
+  color: var(--success);
+  text-transform: uppercase;
+}
+
+@media (max-width: 1120px) {
+  .sarsTopbar,
+  .sarsHero,
+  .sarsKpis,
+  .sarsWorkspace,
+  .sarsModuleGrid,
+  .sarsVendorGrid,
+  .sarsBriefMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .sarsNav {
+    justify-content: flex-start;
+  }
+
+  .sarsDomainRow {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .sarsShell {
+    width: min(100% - 20px, 1440px);
+  }
+
+  .sarsDomainRow {
+    grid-template-columns: 1fr;
+  }
+}
